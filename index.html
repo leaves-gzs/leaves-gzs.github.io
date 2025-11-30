@@ -1,10 +1,178 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>ww</title>
-  </head>
-  <body>
-    <p>Example.</p>
-    <a href="/leave.html">aaa</a>
-  </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的个人博客</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        nav {
+            background-color: #34495e;
+            padding: 0.8rem;
+        }
+        nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+        }
+        nav a:hover {
+            color: #3498db;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 2rem;
+            padding: 0 1rem;
+        }
+        .blog-post {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .blog-post h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        .post-meta {
+            color: #7f8c8d;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .blog-post img {
+            max-width: 100%;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        .sidebar {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .sidebar h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        .sidebar ul {
+            list-style: none;
+        }
+        .sidebar li {
+            margin-bottom: 0.8rem;
+        }
+        .sidebar a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .sidebar a:hover {
+            color: #2980b9;
+        }
+        footer {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>我的个人技术博客</h1>
+        <p>分享编程心得与学习笔记</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#">首页</a></li>
+            <li><a href="#">技术文章</a></li>
+            <li><a href="#">学习笔记</a></li>
+            <li><a href="#">关于我</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <main>
+            <article class="blog-post">
+                <h2>HTML5新特性详解</h2>
+                <div class="post-meta">发布于 2025年11月30日 | 分类：前端技术</div>
+                <img src="https://picsum.photos/800/400" alt="HTML5示例图">
+                <p>HTML5作为新一代的HTML标准，带来了许多令人兴奋的新特性，极大地提升了网页的功能和用户体验...</p>
+                <p>新增的语义化标签如&lt;header&gt;、&lt;nav&gt;、&lt;article&gt;等，让网页结构更加清晰，有利于SEO和代码维护...</p>
+                <a href="#">阅读全文 →</a>
+            </article>
+
+            <article class="blog-post">
+                <h2>CSS Grid布局实战</h2>
+                <div class="post-meta">发布于 2025年11月28日 | 分类：前端技术</div>
+                <img src="https://picsum.photos/800/400?random=1" alt="CSS Grid示例图">
+                <p>CSS Grid布局是CSS中最强大的布局系统，它允许我们创建复杂的二维布局，相比Flexbox更加灵活...</p>
+                <p>通过定义网格容器和网格项，我们可以轻松实现响应式布局，无需依赖复杂的CSS框架...</p>
+                <a href="#">阅读全文 →</a>
+            </article>
+        </main>
+
+        <aside class="sidebar">
+            <div>
+                <h3>关于博主</h3>
+                <p>一名热爱编程的前端开发者，专注于分享Web开发技术和学习经验。</p>
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <h3>热门文章</h3>
+                <ul>
+                    <li><a href="#">JavaScript异步编程详解</a></li>
+                    <li><a href="#">React Hooks使用指南</a></li>
+                    <li><a href="#">Vue3组合式API实战</a></li>
+                    <li><a href="#">响应式设计最佳实践</a></li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <h3>分类导航</h3>
+                <ul>
+                    <li><a href="#">前端技术</a></li>
+                    <li><a href="#">后端开发</a></li>
+                    <li><a href="#">工具推荐</a></li>
+                    <li><a href="#">学习资源</a></li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 我的个人博客 | 保留所有权利</p>
+    </footer>
+</body>
 </html>
