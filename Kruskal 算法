@@ -1,0 +1,556 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kruskal算法全面研究报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #FFFFFF;
+        }
+        .card {
+            background-color: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 1.25rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
+            position: relative;
+        }
+        .card:hover {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        }
+        .highlight-gradient-blue {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.05));
+        }
+        .highlight-gradient-purple {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0), rgba(139, 92, 246, 0.05));
+        }
+        .highlight-gradient-green {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0), rgba(34, 197, 94, 0.05));
+        }
+        .highlight-gradient-amber {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0), rgba(245, 158, 11, 0.05));
+        }
+        .highlight-gradient-red {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0), rgba(239, 68, 68, 0.05));
+        }
+        .highlight-gradient-cyan {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0), rgba(6, 182, 212, 0.05));
+        }
+        .step-line {
+            height: 2px;
+            background-color: #E5E7EB;
+            position: relative;
+        }
+        .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #3B82F6;
+            position: absolute;
+            top: -5px;
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+            <!-- 标题卡片 -->
+            <div class="card md:col-span-4 p-8 flex flex-col justify-center">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <i class="fa-solid fa-network-wired text-3xl text-blue-500"></i>
+                        <h1 class="text-4xl md:text-5xl font-bold text-gray-800">Kruskal算法全面研究报告</h1>
+                    </div>
+                    <p class="text-lg text-gray-600 max-w-3xl">图论中求解最小生成树的经典贪心算法，由Joseph Kruskal于1956年提出，在网络设计、电路布局、交通规划等领域具有广泛应用。</p>
+                </div>
+            </div>
+
+            <!-- 算法核心原理 -->
+            <div class="card md:col-span-2 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-purple"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-lightbulb text-purple-500 mr-3"></i>
+                        算法核心原理
+                    </h2>
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">贪心策略</h3>
+                            <p class="text-gray-600">按边权值从小到大的顺序选择边，每次选择当前最小且不会形成环的边，直到所有顶点都被连接。</p>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">数学基础</h3>
+                            <ul class="space-y-2 text-gray-600">
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-check-circle text-purple-500 mt-1 mr-2"></i>
+                                    <span><strong>割性质</strong>：连接两个割集的最小权重边必在最小生成树中</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-check-circle text-purple-500 mt-1 mr-2"></i>
+                                    <span><strong>环性质</strong>：环中最大权重边不在任何最小生成树中</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 并查集数据结构 -->
+            <div class="card md:col-span-2 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-sitemap text-green-500 mr-3"></i>
+                        并查集数据结构
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-cube text-green-500 mr-2"></i>
+                                MakeSet
+                            </h3>
+                            <p class="text-sm text-gray-600">初始化每个顶点为独立集合</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-magnifying-glass text-green-500 mr-2"></i>
+                                Find
+                            </h3>
+                            <p class="text-sm text-gray-600">查找顶点所在集合的代表元素</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-link text-green-500 mr-2"></i>
+                                Union
+                            </h3>
+                            <p class="text-sm text-gray-600">合并两个不同的集合</p>
+                        </div>
+                    </div>
+                    <div class="mt-6 p-4 bg-green-50 rounded-lg">
+                        <p class="text-sm text-gray-700"><strong>优化技术：</strong>路径压缩与按秩合并，使操作时间复杂度接近常数O(α(V))，其中α是反阿克曼函数。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 算法执行流程 -->
+            <div class="card md:col-span-4 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-list-ol text-amber-500 mr-3"></i>
+                        算法执行流程
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <!-- 步骤1 -->
+                        <div class="relative">
+                            <div class="bg-amber-50 rounded-lg p-4 h-full flex flex-col">
+                                <div class="flex items-center justify-center w-10 h-10 bg-amber-500 text-white rounded-full mb-4 mx-auto">1</div>
+                                <h3 class="font-semibold text-gray-700 mb-2 text-center">输入图初始化</h3>
+                                <p class="text-sm text-gray-600 text-center">读取顶点数V和边数E，将所有边存储在列表中</p>
+                            </div>
+                            <div class="hidden md:block absolute top-1/2 right-0 w-1/2 h-1 bg-gray-200 -translate-y-1/2"></div>
+                        </div>
+                        <!-- 步骤2 -->
+                        <div class="relative">
+                            <div class="bg-amber-50 rounded-lg p-4 h-full flex flex-col">
+                                <div class="flex items-center justify-center w-10 h-10 bg-amber-500 text-white rounded-full mb-4 mx-auto">2</div>
+                                <h3 class="font-semibold text-gray-700 mb-2 text-center">边的排序</h3>
+                                <p class="text-sm text-gray-600 text-center">将所有边按权重从小到大排序</p>
+                            </div>
+                            <div class="hidden md:block absolute top-1/2 right-0 w-1/2 h-1 bg-gray-200 -translate-y-1/2"></div>
+                        </div>
+                        <!-- 步骤3 -->
+                        <div class="relative">
+                            <div class="bg-amber-50 rounded-lg p-4 h-full flex flex-col">
+                                <div class="flex items-center justify-center w-10 h-10 bg-amber-500 text-white rounded-full mb-4 mx-auto">3</div>
+                                <h3 class="font-semibold text-gray-700 mb-2 text-center">并查集初始化</h3>
+                                <p class="text-sm text-gray-600 text-center">创建并查集，每个顶点为独立集合</p>
+                            </div>
+                            <div class="hidden md:block absolute top-1/2 right-0 w-1/2 h-1 bg-gray-200 -translate-y-1/2"></div>
+                        </div>
+                        <!-- 步骤4 -->
+                        <div class="relative">
+                            <div class="bg-amber-50 rounded-lg p-4 h-full flex flex-col">
+                                <div class="flex items-center justify-center w-10 h-10 bg-amber-500 text-white rounded-full mb-4 mx-auto">4</div>
+                                <h3 class="font-semibold text-gray-700 mb-2 text-center">构建最小生成树</h3>
+                                <p class="text-sm text-gray-600 text-center">依次处理每条边，使用并查集检查并合并连通分量</p>
+                            </div>
+                            <div class="hidden md:block absolute top-1/2 right-0 w-1/2 h-1 bg-gray-200 -translate-y-1/2"></div>
+                        </div>
+                        <!-- 步骤5 -->
+                        <div>
+                            <div class="bg-amber-50 rounded-lg p-4 h-full flex flex-col">
+                                <div class="flex items-center justify-center w-10 h-10 bg-amber-500 text-white rounded-full mb-4 mx-auto">5</div>
+                                <h3 class="font-semibold text-gray-700 mb-2 text-center">输出结果</h3>
+                                <p class="text-sm text-gray-600 text-center">输出最小生成树的所有边及总权重</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 时间复杂度 -->
+            <div class="card md:col-span-2 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-red"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-gauge-high text-red-500 mr-3"></i>
+                        时间复杂度分析
+                    </h2>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">边排序</span>
+                            <span class="font-mono text-red-600 font-bold">O(E log E)</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">并查集操作</span>
+                            <span class="font-mono text-red-600 font-bold">O(E α(V))</span>
+                        </div>
+                        <div class="mt-6 p-4 bg-red-50 rounded-lg border-l-4 border-red-500">
+                            <p class="text-gray-700"><strong>总体复杂度：</strong> O(E log E) 或 O(E log V)，主要由边排序步骤决定。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 空间复杂度 -->
+            <div class="card md:col-span-2 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-cyan"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-memory text-cyan-500 mr-3"></i>
+                        空间复杂度分析
+                    </h2>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">边列表存储</span>
+                            <span class="font-mono text-cyan-600 font-bold">O(E)</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">并查集结构</span>
+                            <span class="font-mono text-cyan-600 font-bold">O(V)</span>
+                        </div>
+                        <div class="mt-6 p-4 bg-cyan-50 rounded-lg border-l-4 border-cyan-500">
+                            <p class="text-gray-700"><strong>总体复杂度：</strong> O(E+V)，主要由边列表和并查集结构决定。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 性能对比图表 -->
+            <div class="card md:col-span-4 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-chart-line text-blue-500 mr-3"></i>
+                        不同算法在稀疏图和稠密图中的性能对比
+                    </h2>
+                    <div class="h-80">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 实际应用场景 -->
+            <div class="card md:col-span-4 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-purple"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-cogs text-purple-500 mr-3"></i>
+                        实际应用场景
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <div class="flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-full mb-4 mx-auto">
+                                <i class="fa-solid fa-network-wired text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-700 mb-2 text-center">网络布线优化</h3>
+                            <p class="text-sm text-gray-600 text-center">通信网络、电力网络、供水网络的最优连接设计</p>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <div class="flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-full mb-4 mx-auto">
+                                <i class="fa-solid fa-microchip text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-700 mb-2 text-center">电路设计</h3>
+                            <p class="text-sm text-gray-600 text-center">PCB布线优化、集成电路设计、电路拓扑优化</p>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <div class="flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-full mb-4 mx-auto">
+                                <i class="fa-solid fa-truck-fast text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-700 mb-2 text-center">物流网络设计</h3>
+                            <p class="text-sm text-gray-600 text-center">运输网络优化、配送路线规划、仓储连接设计</p>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <div class="flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-full mb-4 mx-auto">
+                                <i class="fa-solid fa-brain text-xl"></i>
+                            </div>
+                            <h3 class="font-semibold text-gray-700 mb-2 text-center">数据科学</h3>
+                            <p class="text-sm text-gray-600 text-center">聚类分析、图像分割、社交网络分析、推荐系统</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 算法对比表格 -->
+            <div class="card md:col-span-4 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-table text-green-500 mr-3"></i>
+                        Kruskal算法与其他最小生成树算法对比
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">算法</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">时间复杂度</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">空间复杂度</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">适用场景</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">优点</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">缺点</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-gray-800">Kruskal</td>
+                                    <td class="px-4 py-3 text-gray-600">O(E log E)</td>
+                                    <td class="px-4 py-3 text-gray-600">O(E)</td>
+                                    <td class="px-4 py-3 text-gray-600">稀疏图</td>
+                                    <td class="px-4 py-3 text-gray-600">实现简单，支持不连通图</td>
+                                    <td class="px-4 py-3 text-gray-600">需要全局排序，稠密图效率低</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-gray-800">Prim (邻接矩阵)</td>
+                                    <td class="px-4 py-3 text-gray-600">O(V²)</td>
+                                    <td class="px-4 py-3 text-gray-600">O(V²)</td>
+                                    <td class="px-4 py-3 text-gray-600">稠密图</td>
+                                    <td class="px-4 py-3 text-gray-600">稠密图效率高，适合动态图</td>
+                                    <td class="px-4 py-3 text-gray-600">稀疏图效率低，空间复杂度高</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-gray-800">Prim (二叉堆)</td>
+                                    <td class="px-4 py-3 text-gray-600">O(E log V)</td>
+                                    <td class="px-4 py-3 text-gray-600">O(E+V)</td>
+                                    <td class="px-4 py-3 text-gray-600">一般图</td>
+                                    <td class="px-4 py-3 text-gray-600">适用范围广</td>
+                                    <td class="px-4 py-3 text-gray-600">实现复杂，需要优先队列</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-gray-800">Boruvka</td>
+                                    <td class="px-4 py-3 text-gray-600">O(E log V)</td>
+                                    <td class="px-4 py-3 text-gray-600">O(E+V)</td>
+                                    <td class="px-4 py-3 text-gray-600">并行计算</td>
+                                    <td class="px-4 py-3 text-gray-600">天然并行性，适合大规模图</td>
+                                    <td class="px-4 py-3 text-gray-600">实现复杂，常数因子大</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 算法优化与改进 -->
+            <div class="card md:col-span-2 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-rocket text-amber-500 mr-3"></i>
+                        算法优化与改进
+                    </h2>
+                    <div class="space-y-4">
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-sort text-amber-500 mr-2"></i>
+                                排序优化
+                            </h3>
+                            <p class="text-sm text-gray-600">部分排序、基数排序、并行排序</p>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-sitemap text-amber-500 mr-2"></i>
+                                并查集优化
+                            </h3>
+                            <p class="text-sm text-gray-600">路径压缩、按秩合并、批量操作</p>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-microchip text-amber-500 mr-2"></i>
+                                并行化实现
+                            </h3>
+                            <p class="text-sm text-gray-600">GPU实现、分布式内存实现、共享内存并行实现</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 未来发展趋势 -->
+            <div class="card md:col-span-2 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-red"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-telescope text-red-500 mr-3"></i>
+                        未来发展趋势
+                    </h2>
+                    <div class="space-y-4">
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-brain text-red-500 mr-2"></i>
+                                机器学习辅助优化
+                            </h3>
+                            <p class="text-sm text-gray-600">自适应阈值、智能边选择、性能预测</p>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-atom text-red-500 mr-2"></i>
+                                量子算法
+                            </h3>
+                            <p class="text-sm text-gray-600">量子排序、量子并查集数据结构</p>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <h3 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-robot text-red-500 mr-2"></i>
+                                神经形态计算
+                            </h3>
+                            <p class="text-sm text-gray-600">脉冲神经网络实现、流水线Kruskal算法</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结论 -->
+            <div class="card md:col-span-4 p-8">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fa-solid fa-flag-checkered text-blue-500 mr-3"></i>
+                        结论与展望
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">主要结论</h3>
+                            <ul class="space-y-2 text-gray-600">
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-check text-blue-500 mt-1 mr-2"></i>
+                                    <span>Kruskal算法是一种高效的最小生成树算法，时间复杂度为O(E log E)</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-check text-blue-500 mt-1 mr-2"></i>
+                                    <span>在稀疏图中表现优异，实现简单，支持不连通图处理</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-check text-blue-500 mt-1 mr-2"></i>
+                                    <span>在网络设计、电路布局、数据科学等领域有广泛应用</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-check text-blue-500 mt-1 mr-2"></i>
+                                    <span>通过优化和并行化，可进一步提升算法性能</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">未来展望</h3>
+                            <ul class="space-y-2 text-gray-600">
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-arrow-trend-up text-blue-500 mt-1 mr-2"></i>
+                                    <span>自适应算法将根据图特征自动调整策略</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-arrow-trend-up text-blue-500 mt-1 mr-2"></i>
+                                    <span>量子计算将为算法带来新的突破</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-arrow-trend-up text-blue-500 mt-1 mr-2"></i>
+                                    <span>机器学习将辅助优化算法参数和选择</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa-solid fa-arrow-trend-up text-blue-500 mt-1 mr-2"></i>
+                                    <span>硬件加速将显著提高大规模图处理效率</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    // 性能对比图表
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    const performanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['稀疏图 (V=1000, E=4000)', '稀疏图 (V=1000, E=16000)', '稠密图 (V=1000, E=500000)'],
+            datasets: [
+                {
+                    label: 'Kruskal算法 (ms)',
+                    data: [3, 15.5, 200],
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Prim算法 (ms)',
+                    data: [15, 35, 80],
+                    backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                    borderColor: 'rgba(139, 92, 246, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Boruvka算法 (ms)',
+                    data: [8, 25, 120],
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.raw + ' 毫秒';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '运行时间 (毫秒)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' ms';
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '图类型 (顶点数V, 边数E)'
+                    }
+                }
+            }
+        }
+    });
+</script>
+</html>
