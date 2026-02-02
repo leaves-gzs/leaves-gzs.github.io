@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>链式前向星在C++中的基本原理与实现</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: #FFFFFF;
+        }
+        .card {
+            background-color: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 1.25rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
+            position: relative;
+        }
+        .highlight-gradient-blue {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.05));
+        }
+        .highlight-gradient-purple {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0), rgba(139, 92, 246, 0.05));
+        }
+        .highlight-gradient-green {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0), rgba(34, 197, 94, 0.05));
+        }
+        .highlight-gradient-amber {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0), rgba(245, 158, 11, 0.05));
+        }
+        .highlight-gradient-rose {
+            background: linear-gradient(135deg, rgba(244, 63, 94, 0), rgba(244, 63, 94, 0.05));
+        }
+        .code-block {
+            background-color: #f9fafb;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #374151;
+            overflow-x: auto;
+        }
+        .arrow-right {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-left: 6px solid #3b82f6;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            margin: 0 8px;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            <!-- 主标题卡片 -->
+            <div class="card md:col-span-3 p-8 flex flex-col justify-center items-center text-center relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">链式前向星</h1>
+                    <p class="text-xl md:text-2xl text-gray-600 mb-6">在C++中的基本原理与实现</p>
+                    <div class="flex flex-wrap justify-center gap-4 text-sm md:text-base">
+                        <span class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full flex items-center">
+                            <i class="fa-solid fa-sitemap mr-2"></i>图存储结构
+                        </span>
+                        <span class="bg-purple-100 text-purple-800 px-4 py-2 rounded-full flex items-center">
+                            <i class="fa-solid fa-code mr-2"></i>C++实现
+                        </span>
+                        <span class="bg-green-100 text-green-800 px-4 py-2 rounded-full flex items-center">
+                            <i class="fa-solid fa-rocket mr-2"></i>高效算法
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图存储结构对比卡片 -->
+            <div class="card md:col-span-2 p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-purple"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-chart-line text-purple-500 mr-3"></i>图存储结构对比
+                    </h2>
+                    <div class="flex-grow h-[300px]">
+                        <canvas id="storageComparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 链式前向星优势卡片 -->
+            <div class="card p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-star text-green-500 mr-3"></i>核心优势
+                    </h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <span>空间效率高，复杂度O(n+e)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <span>缓存友好，数据连续存储</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <span>插入效率高，头插法O(1)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <span>遍历高效，适合图算法</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <span>实现相对简单，调试容易</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 数据结构定义卡片 -->
+            <div class="card md:col-span-3 p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-database text-amber-500 mr-3"></i>数据结构定义
+                    </h2>
+                    <div class="code-block">
+                        <pre>const int MAXN = 100000; // 最大顶点数
+const int MAXM = 200000; // 最大边数（无向图需要开双倍）
+
+// 核心数组
+int head[MAXN];    // 头节点数组
+int to[MAXM];      // 终点数组
+int next[MAXM];    // 下一条边数组
+int weight[MAXM];  // 权值数组（可选）
+int edgeCount = 0; // 当前边数
+
+// 结构体方式（可选）
+struct Edge {
+    int to;
+    int next;
+    int weight;
+};
+Edge edge[MAXM]; // 边结构体数组</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 添加边操作卡片 -->
+            <div class="card md:col-span-2 p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-plus-circle text-blue-500 mr-3"></i>添加边操作
+                    </h2>
+                    <div class="code-block mb-4">
+                        <pre>void addEdge(int u, int v, int w) {
+    to[edgeCount] = v;
+    weight[edgeCount] = w;
+    next[edgeCount] = head[u];
+    head[u] = edgeCount++;
+}</pre>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-bold text-blue-800 mb-2">操作步骤：</h4>
+                        <ol class="list-decimal list-inside space-y-1 text-blue-700">
+                            <li>存储边的终点和权值</li>
+                            <li>将新边插入到链表头部</li>
+                            <li>更新头指针，指向新插入的边</li>
+                            <li>边计数器自增</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 插入过程演示卡片 -->
+            <div class="card p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-rose"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-arrow-right-arrow-left text-rose-500 mr-3"></i>插入过程演示
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="bg-rose-50 p-3 rounded-lg">
+                            <p class="font-bold text-rose-800 mb-1">插入边0→1</p>
+                            <p class="text-sm text-rose-700">head[0] = 0</p>
+                        </div>
+                        <div class="flex justify-center">
+                            <i class="fa-solid fa-arrow-down text-rose-400"></i>
+                        </div>
+                        <div class="bg-rose-50 p-3 rounded-lg">
+                            <p class="font-bold text-rose-800 mb-1">插入边0→2</p>
+                            <p class="text-sm text-rose-700">head[0] = 1, next[1] = 0</p>
+                        </div>
+                        <div class="flex justify-center">
+                            <i class="fa-solid fa-arrow-down text-rose-400"></i>
+                        </div>
+                        <div class="bg-rose-50 p-3 rounded-lg">
+                            <p class="font-bold text-rose-800 mb-1">插入边1→2</p>
+                            <p class="text-sm text-rose-700">head[1] = 2</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DFS遍历卡片 -->
+            <div class="card p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-purple"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-route text-purple-500 mr-3"></i>DFS遍历实现
+                    </h3>
+                    <div class="code-block">
+                        <pre>bool visited[MAXN];
+
+void dfs(int u) {
+    visited[u] = true;
+    
+    // 遍历顶点u的所有邻接边
+    for (int i = head[u]; i != -1; i = next[i]) {
+        int v = to[i];
+        if (!visited[v]) {
+            dfs(v);
+        }
+    }
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BFS遍历卡片 -->
+            <div class="card p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-layer-group text-green-500 mr-3"></i>BFS遍历实现
+                    </h3>
+                    <div class="code-block">
+                        <pre>void bfs(int s) {
+    queue&lt;int&gt; q;
+    bool visited[MAXN] = {false};
+    
+    q.push(s);
+    visited[s] = true;
+    
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        
+        // 遍历顶点u的所有邻接边
+        for (int i = head[u]; i != -1; i = next[i]) {
+            int v = to[i];
+            if (!visited[v]) {
+                visited[v] = true;
+                q.push(v);
+            }
+        }
+    }
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最短路径算法卡片 -->
+            <div class="card p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-map-location-dot text-amber-500 mr-3"></i>最短路径算法
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="bg-amber-50 p-3 rounded-lg">
+                            <p class="font-bold text-amber-800 mb-1">Dijkstra算法</p>
+                            <p class="text-sm text-amber-700">适用于非负权图，使用优先队列优化</p>
+                        </div>
+                        <div class="bg-amber-50 p-3 rounded-lg">
+                            <p class="font-bold text-amber-800 mb-1">SPFA算法</p>
+                            <p class="text-sm text-amber-700">适用于含负权图，队列优化的Bellman-Ford</p>
+                        </div>
+                        <div class="code-block text-xs">
+                            <pre>// Dijkstra核心松弛操作
+for (int i = head[u]; i != -1; i = next[i]) {
+    int v = to[i];
+    int w = weight[i];
+    if (dist[v] > dist[u] + w) {
+        dist[v] = dist[u] + w;
+        pq.push({dist[v], v});
+    }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 与传统链表对比卡片 -->
+            <div class="card md:col-span-2 p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-balance-scale text-blue-500 mr-3"></i>与传统链表对比
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-blue-50">
+                                    <th class="border border-blue-200 px-4 py-2 text-left font-bold text-blue-800">对比项</th>
+                                    <th class="border border-blue-200 px-4 py-2 text-left font-bold text-blue-800">链式前向星</th>
+                                    <th class="border border-blue-200 px-4 py-2 text-left font-bold text-blue-800">传统链表</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="border border-blue-200 px-4 py-2 font-medium">存储方式</td>
+                                    <td class="border border-blue-200 px-4 py-2">静态数组，连续存储</td>
+                                    <td class="border border-blue-200 px-4 py-2">动态分配，随机存储</td>
+                                </tr>
+                                <tr class="bg-blue-50/50">
+                                    <td class="border border-blue-200 px-4 py-2 font-medium">缓存性能</td>
+                                    <td class="border border-blue-200 px-4 py-2 text-green-600"><i class="fa-solid fa-check"></i> 优秀</td>
+                                    <td class="border border-blue-200 px-4 py-2 text-red-600"><i class="fa-solid fa-times"></i> 较差</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-blue-200 px-4 py-2 font-medium">内存管理</td>
+                                    <td class="border border-blue-200 px-4 py-2">预分配，无泄漏风险</td>
+                                    <td class="border border-blue-200 px-4 py-2">需手动管理，易泄漏</td>
+                                </tr>
+                                <tr class="bg-blue-50/50">
+                                    <td class="border border-blue-200 px-4 py-2 font-medium">插入效率</td>
+                                    <td class="border border-blue-200 px-4 py-2">O(1)，仅支持头插</td>
+                                    <td class="border border-blue-200 px-4 py-2">O(1)，支持任意位置</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-blue-200 px-4 py-2 font-medium">实现复杂度</td>
+                                    <td class="border border-blue-200 px-4 py-2">简单，易调试</td>
+                                    <td class="border border-blue-200 px-4 py-2">较复杂，指针操作</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 适用场景卡片 -->
+            <div class="card p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-lightbulb text-green-500 mr-3"></i>适用场景
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="bg-green-50 p-3 rounded-lg flex items-start">
+                            <i class="fa-solid fa-trophy text-green-500 mt-1 mr-3"></i>
+                            <div>
+                                <p class="font-bold text-green-800">算法竞赛</p>
+                                <p class="text-sm text-green-700">时间限制严格，需要高效实现</p>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded-lg flex items-start">
+                            <i class="fa-solid fa-network-wired text-green-500 mt-1 mr-3"></i>
+                            <div>
+                                <p class="font-bold text-green-800">大规模图处理</p>
+                                <p class="text-sm text-green-700">社交网络、网络路由算法</p>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded-lg flex items-start">
+                            <i class="fa-solid fa-microchip text-green-500 mt-1 mr-3"></i>
+                            <div>
+                                <p class="font-bold text-green-800">嵌入式系统</p>
+                                <p class="text-sm text-green-700">内存受限，实时性要求高</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 常见问题卡片 -->
+            <div class="card md:col-span-3 p-6 flex flex-col relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-rose"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-500 mr-3"></i>常见问题与注意事项
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-rose-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-rose-800 mb-2 flex items-center">
+                                <i class="fa-solid fa-arrows-up-down text-rose-500 mr-2"></i>数组大小设置错误
+                            </h4>
+                            <p class="text-sm text-rose-700">MAXN应大于等于最大顶点编号，MAXM应大于等于边的总数（无向图需要2倍）。</p>
+                        </div>
+                        <div class="bg-rose-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-rose-800 mb-2 flex items-center">
+                                <i class="fa-solid fa-gear text-rose-500 mr-2"></i>初始化遗漏
+                            </h4>
+                            <p class="text-sm text-rose-700">head数组必须初始化为-1，edgeCount必须重置为0，特别是在多测试用例中。</p>
+                        </div>
+                        <div class="bg-rose-50 p-4 rounded-lg">
+                            <h4 class="font-bold text-rose-800 mb-2 flex items-center">
+                                <i class="fa-solid fa-arrow-rotate-left text-rose-500 mr-2"></i>遍历顺序问题
+                            </h4>
+                            <p class="text-sm text-rose-700">头插法导致遍历顺序与添加顺序相反，某些算法可能需要注意这个顺序。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 总结卡片 -->
+            <div class="card md:col-span-3 p-8 flex flex-col justify-center items-center text-center relative">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">核心要点回顾</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <i class="fa-solid fa-cogs text-3xl text-blue-500 mb-3"></i>
+                            <h4 class="font-bold text-blue-800 mb-2">基本原理</h4>
+                            <p class="text-sm text-blue-700">用数组模拟链表的邻接表实现，通过head、to、next三个数组实现图的存储。</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <i class="fa-solid fa-rocket text-3xl text-purple-500 mb-3"></i>
+                            <h4 class="font-bold text-purple-800 mb-2">性能优势</h4>
+                            <p class="text-sm text-purple-700">缓存友好、空间高效、插入快速，特别适合大规模稀疏图的处理。</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <i class="fa-solid fa-code text-3xl text-green-500 mb-3"></i>
+                            <h4 class="font-bold text-green-800 mb-2">实现要点</h4>
+                            <p class="text-sm text-green-700">头插法添加边，初始化head数组为-1，注意数组大小设置和多测试用例处理。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    // 初始化图存储结构对比图表
+    const ctx = document.getElementById('storageComparisonChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['邻接矩阵', '邻接表', '链式前向星'],
+            datasets: [
+                {
+                    label: '空间复杂度 (稀疏图)',
+                    data: [99, 10, 10],
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: '插入效率',
+                    data: [5, 8, 10],
+                    backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                    borderColor: 'rgba(139, 92, 246, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: '缓存性能',
+                    data: [7, 6, 10],
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y + '%';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+</html>
