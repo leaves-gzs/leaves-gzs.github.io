@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java版Minecraft服务器免费创建全攻略</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #FFFFFF;
+        }
+        .card {
+            background-color: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 1.25rem; /* 20px */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
+            position: relative;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+        .highlight-gradient-blue {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.05));
+        }
+        .highlight-gradient-green {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0), rgba(34, 197, 94, 0.05));
+        }
+        .highlight-gradient-purple {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0), rgba(168, 85, 247, 0.05));
+        }
+        .highlight-gradient-amber {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0), rgba(245, 158, 11, 0.05));
+        }
+        .highlight-gradient-red {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0), rgba(239, 68, 68, 0.05));
+        }
+        .icon-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(59, 130, 246, 0.1);
+            color: #3B82F6;
+        }
+        .text-balance {
+            text-wrap: balance;
+        }
+    </style>
+</head>
+<body class="bg-white">
+  <div class="fixed top-4 left-4 z-50">
+        <a href="javascript:history.back();" 
+           class="bg-white text-gray-800 hover:bg-gray-100 hover:text-blue-600 
+                  px-4 py-2 rounded-lg shadow-md transition-all duration-300
+                  flex items-center gap-2 border border-gray-200"
+           title="返回上一页">
+            <i class="fa-solid fa-arrow-left"></i> 返回上级
+        </a>
+    </div>
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <!-- 标题卡片 -->
+        <div class="card md:col-span-4 p-8 md:p-12 mb-4 md:mb-6">
+            <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+            <div class="relative z-10">
+                <div class="flex items-center mb-4">
+                    <i class="fa-solid fa-server text-4xl text-blue-500 mr-4"></i>
+                    <h1 class="text-3xl md:text-5xl font-bold text-gray-800">Java版Minecraft服务器免费创建全攻略</h1>
+                </div>
+                <p class="text-lg md:text-xl text-gray-600 max-w-4xl text-balance">从多种方式到最佳实践指南，帮助你轻松搭建自己的Minecraft服务器</p>
+            </div>
+        </div>
+
+        <!-- 方式概览 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+            <div class="card md:col-span-1 p-6 flex flex-col justify-between">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative z-10">
+                    <div class="icon-circle mb-4">
+                        <i class="fa-solid fa-desktop text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">本地自建服务器</h3>
+                    <p class="text-gray-600 mb-4">通过下载官方或第三方服务器软件，在自己的计算机上搭建服务器环境。</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-check-circle text-green-500 mr-2"></i>
+                            <span>完全免费</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-check-circle text-green-500 mr-2"></i>
+                            <span>最大控制权</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-xmark-circle text-red-500 mr-2"></i>
+                            <span>技术门槛高</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card md:col-span-1 p-6 flex flex-col justify-between">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <div class="icon-circle mb-4">
+                        <i class="fa-solid fa-cloud text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">免费云服务搭建</h3>
+                    <p class="text-gray-600 mb-4">利用Aternos、MineKeep等免费云服务平台提供的资源来搭建服务器。</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-check-circle text-green-500 mr-2"></i>
+                            <span>无需本地资源</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-check-circle text-green-500 mr-2"></i>
+                            <span>操作简单</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-xmark-circle text-red-500 mr-2"></i>
+                            <span>资源限制</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card md:col-span-1 p-6 flex flex-col justify-between">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-purple"></div>
+                <div class="relative z-10">
+                    <div class="icon-circle mb-4">
+                        <i class="fa-solid fa-users text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">社区免费托管服务</h3>
+                    <p class="text-gray-600 mb-4">由Minecraft爱好者社区运营的非营利性服务器托管平台。</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-check-circle text-green-500 mr-2"></i>
+                            <span>社区支持</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-check-circle text-green-500 mr-2"></i>
+                            <span>资源共享</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-xmark-circle text-red-500 mr-2"></i>
+                            <span>稳定性不确定</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card md:col-span-1 p-6 flex flex-col justify-between">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative z-10">
+                    <div class="icon-circle mb-4">
+                        <i class="fa-solid fa-network-wired text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">内网穿透方案</h3>
+                    <p class="text-gray-600 mb-4">通过FRP等工具，在没有公网IP的情况下，将本地服务器暴露到互联网。</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-check-circle text-green-500 mr-2"></i>
+                            <span>解决公网IP问题</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-check-circle text-green-500 mr-2"></i>
+                            <span>低成本</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fa-solid fa-xmark-circle text-red-500 mr-2"></i>
+                            <span>可能影响速度</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 硬件要求 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mt-4 md:mt-6">
+            <div class="card md:col-span-2 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">本地自建服务器硬件要求</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-3 rounded-lg mr-4">
+                                <i class="fa-solid fa-microchip text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">轻度生存模式服务器</h4>
+                                <p class="text-gray-600 text-sm">适合5人以下小型服务器</p>
+                                <ul class="mt-2 space-y-1 text-sm text-gray-600">
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>1核2G内存</li>
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>50GB SSD存储</li>
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>双核处理器，主频不低于2.0GHz</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                                <i class="fa-solid fa-cubes text-blue-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">中型模组服</h4>
+                                <p class="text-gray-600 text-sm">适合10-20人服务器，支持较多模组</p>
+                                <ul class="mt-2 space-y-1 text-sm text-gray-600">
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>2核4G内存</li>
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>100GB SSD存储</li>
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>六核十二线程及以上处理器</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-purple-100 p-3 rounded-lg mr-4">
+                                <i class="fa-solid fa-server text-purple-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">大型插件服</h4>
+                                <p class="text-gray-600 text-sm">适合30人以上大型服务器</p>
+                                <ul class="mt-2 space-y-1 text-sm text-gray-600">
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>4核8G内存</li>
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>200GB SSD存储</li>
+                                    <li><i class="fa-solid fa-check text-green-500 mr-2"></i>5Mbps带宽</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card md:col-span-2 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">网络环境要求</h3>
+                    <div class="h-64">
+                        <canvas id="bandwidthChart"></canvas>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600">
+                        <p>根据玩家数量选择合适的带宽：</p>
+                        <ul class="mt-2 space-y-1">
+                            <li><i class="fa-solid fa-users text-blue-500 mr-2"></i>5人以下：5Mbps以上</li>
+                            <li><i class="fa-solid fa-users text-blue-500 mr-2"></i>10人服务器：10Mbps以上</li>
+                            <li><i class="fa-solid fa-users text-blue-500 mr-2"></i>30人以上：20Mbps以上</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 免费云服务对比 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mt-4 md:mt-6">
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-purple"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">免费云服务平台对比</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">平台</th>
+                                    <th class="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">内存</th>
+                                    <th class="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">玩家上限</th>
+                                    <th class="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">存储</th>
+                                    <th class="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">特殊功能</th>
+                                    <th class="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">限制</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-3 px-4 border-b text-sm text-gray-700 font-medium">Aternos</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">4GB</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">10-20人</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">按需分配</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">支持插件、模组</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">休眠机制</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-3 px-4 border-b text-sm text-gray-700 font-medium">MineKeep</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">1GB</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">10人</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">10GB</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">永久免费</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">无游戏时间限制</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-3 px-4 border-b text-sm text-gray-700 font-medium">SwiftServers</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">1.5GB</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">无限制</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">10GB NVMe</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">AMD EPYC™处理器</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">无隐藏费用</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-3 px-4 border-b text-sm text-gray-700 font-medium">简幻欢</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">16GB</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">2-5人</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">16GB</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">4核心CPU</td>
+                                    <td class="py-3 px-4 border-b text-sm text-gray-600">需1元认证</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最佳方案推荐 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mt-4 md:mt-6">
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-amber-100 p-3 rounded-full mr-4">
+                            <i class="fa-solid fa-trophy text-amber-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-800">最佳方案推荐：Aternos免费服务器托管</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">核心优势</h4>
+                            <div class="space-y-3">
+                                <div class="flex items-start">
+                                    <i class="fa-solid fa-gem text-amber-500 mt-1 mr-3"></i>
+                                    <div>
+                                        <h5 class="font-medium text-gray-700">完全免费且无隐藏成本</h5>
+                                        <p class="text-sm text-gray-600">永久免费，无诱导内购，核心功能完全免费</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start">
+                                    <i class="fa-solid fa-thumbs-up text-amber-500 mt-1 mr-3"></i>
+                                    <div>
+                                        <h5 class="font-medium text-gray-700">易用性和用户友好性</h5>
+                                        <p class="text-sm text-gray-600">基于浏览器的控制面板，创建过程简单直观</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start">
+                                    <i class="fa-solid fa-puzzle-piece text-amber-500 mt-1 mr-3"></i>
+                                    <div>
+                                        <h5 class="font-medium text-gray-700">功能完整性和扩展性</h5>
+                                        <p class="text-sm text-gray-600">支持多种服务器类型，内置插件和模组管理系统</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start">
+                                    <i class="fa-solid fa-users text-amber-500 mt-1 mr-3"></i>
+                                    <div>
+                                        <h5 class="font-medium text-gray-700">社区支持和资源丰富</h5>
+                                        <p class="text-sm text-gray-600">庞大的用户社区，详细的教程和常见问题解答</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">适用用户群体</h4>
+                            <div class="space-y-3">
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <div class="flex items-center mb-2">
+                                        <i class="fa-solid fa-user-graduate text-blue-500 mr-2"></i>
+                                        <h5 class="font-medium text-gray-700">学生群体和预算有限用户</h5>
+                                    </div>
+                                    <p class="text-sm text-gray-600">无收入来源，但希望拥有自己的Minecraft服务器</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <div class="flex items-center mb-2">
+                                        <i class="fa-solid fa-lightbulb text-green-500 mr-2"></i>
+                                        <h5 class="font-medium text-gray-700">新手用户和技术爱好者</h5>
+                                    </div>
+                                    <p class="text-sm text-gray-600">快速入门服务器管理，学习服务器配置和管理</p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <div class="flex items-center mb-2">
+                                        <i class="fa-solid fa-users-line text-purple-500 mr-2"></i>
+                                        <h5 class="font-medium text-gray-700">小团体游戏玩家</h5>
+                                    </div>
+                                    <p class="text-sm text-gray-600">固定的3-5个朋友组成的小团体，创建私密服务器</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aternos操作指南 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mt-4 md:mt-6">
+            <div class="card md:col-span-2 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Aternos详细操作指南：准备与创建</h3>
+                    <div class="space-y-4">
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <div class="bg-green-100 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-green-600 font-bold text-sm">1</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-700">准备工作</h4>
+                            </div>
+                            <ul class="text-sm text-gray-600 ml-11 space-y-1">
+                                <li>• 检查系统环境，确保浏览器和Java环境正常</li>
+                                <li>• 访问Aternos官网注册账号</li>
+                                <li>• 准备Minecraft客户端</li>
+                                <li>• 规划服务器设置和玩家数量</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <div class="bg-green-100 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-green-600 font-bold text-sm">2</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-700">创建服务器</h4>
+                            </div>
+                            <ul class="text-sm text-gray-600 ml-11 space-y-1">
+                                <li>• 登录后点击"创建服务器"按钮</li>
+                                <li>• 选择Java版，设置服务器名称和标语</li>
+                                <li>• 选择服务器类型（Vanilla、Paper等）和版本</li>
+                                <li>• 配置世界设置、游戏设置和性能设置</li>
+                                <li>• 点击"创建"并等待初始化完成</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <div class="bg-green-100 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-green-600 font-bold text-sm">3</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-700">基础配置</h4>
+                            </div>
+                            <ul class="text-sm text-gray-600 ml-11 space-y-1">
+                                <li>• 编辑server.properties等配置文件</li>
+                                <li>• 安装必要的插件和模组</li>
+                                <li>• 优化服务器性能设置</li>
+                                <li>• 配置安全设置和访问控制</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card md:col-span-2 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Aternos详细操作指南：启动与优化</h3>
+                    <div class="space-y-4">
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <div class="bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-blue-600 font-bold text-sm">4</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-700">启动与测试</h4>
+                            </div>
+                            <ul class="text-sm text-gray-600 ml-11 space-y-1">
+                                <li>• 点击"启动"按钮启动服务器</li>
+                                <li>• 在控制台查看启动日志</li>
+                                <li>• 记录服务器IP地址和端口号</li>
+                                <li>• 使用Minecraft客户端连接测试</li>
+                                <li>• 验证基础功能和插件是否正常工作</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <div class="bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-blue-600 font-bold text-sm">5</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-700">性能优化</h4>
+                            </div>
+                            <ul class="text-sm text-gray-600 ml-11 space-y-1">
+                                <li>• 视距调整：将view-distance从10降低到6-8</li>
+                                <li>• 启用异步红石功能</li>
+                                <li>• 优化实体设置，降低刷新数量</li>
+                                <li>• 选择轻量级插件，避免功能重复</li>
+                                <li>• 定期重启服务器，避免内存泄漏</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <div class="bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-blue-600 font-bold text-sm">6</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-700">数据备份</h4>
+                            </div>
+                            <ul class="text-sm text-gray-600 ml-11 space-y-1">
+                                <li>• 利用Aternos内置自动备份系统</li>
+                                <li>• 手动备份重要文件到本地</li>
+                                <li>• 在重大更新前创建备份</li>
+                                <li>• 测试备份恢复功能</li>
+                                <li>• 制定长期数据管理策略</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 风险提示 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mt-4 md:mt-6">
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-red"></div>
+                <div class="relative z-10">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">风险提示与注意事项</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">安全风险与防护</h4>
+                            <div class="space-y-3">
+                                <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-400">
+                                    <h5 class="font-medium text-red-800 mb-1">数据安全风险</h5>
+                                    <p class="text-sm text-red-700">免费服务器可能存在数据被监控、DDoS攻击风险，定期备份重要文件，避免存储敏感信息。</p>
+                                </div>
+                                <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-400">
+                                    <h5 class="font-medium text-red-800 mb-1">网络安全风险</h5>
+                                    <p class="text-sm text-red-700">使用本地自建或内网穿透服务时，注意防火墙设置，限制服务器访问权限，启用白名单功能。</p>
+                                </div>
+                                <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-400">
+                                    <h5 class="font-medium text-red-800 mb-1">账号安全风险</h5>
+                                    <p class="text-sm text-red-700">使用独特复杂的密码，启用两步验证，不要将账号信息分享给不信任的人。</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-3">服务稳定性风险</h4>
+                            <div class="space-y-3">
+                                <div class="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-400">
+                                    <h5 class="font-medium text-amber-800 mb-1">免费服务固有问题</h5>
+                                    <p class="text-sm text-amber-700">免费服务器可能突然关闭、性能在高峰期下降、技术支持响应缓慢，不要过度依赖单一服务。</p>
+                                </div>
+                                <div class="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-400">
+                                    <h5 class="font-medium text-amber-800 mb-1">可持续性风险</h5>
+                                    <p class="text-sm text-amber-700">免费托管平台可能因运营成本问题调整政策或关闭服务，做好随时迁移服务器的准备。</p>
+                                </div>
+                                <div class="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-400">
+                                    <h5 class="font-medium text-amber-800 mb-1">性能与用户体验</h5>
+                                    <p class="text-sm text-amber-700">免费服务通常有资源限制，玩家数量超过限制后游戏体验会严重下降，合理控制服务器规模。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 总结 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mt-4 md:mt-6">
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center mb-4">
+                        <i class="fa-solid fa-lightbulb text-3xl text-blue-500 mr-4"></i>
+                        <h3 class="text-2xl font-bold text-gray-800">总结与建议</h3>
+                    </div>
+                    <p class="text-lg text-gray-700 mb-4">
+                        通过本指南的详细介绍，相信你已经全面了解了Java版Minecraft服务器的各种免费创建方式，并掌握了使用Aternos创建服务器的完整流程。
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-3">
+                                <i class="fa-solid fa-star text-yellow-500 mr-2"></i>
+                                <h4 class="font-semibold text-gray-700">最佳选择</h4>
+                            </div>
+                            <p class="text-sm text-gray-600">
+                                对于大多数用户，<span class="font-semibold text-blue-600">Aternos</span>是免费创建Java版Minecraft服务器的最佳选择，它提供了平衡的功能、易用性和性能。
+                            </p>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-3">
+                                <i class="fa-solid fa-shield-halved text-green-500 mr-2"></i>
+                                <h4 class="font-semibold text-gray-700">安全第一</h4>
+                            </div>
+                            <p class="text-sm text-gray-600">
+                                无论选择哪种方式，都要重视<span class="font-semibold text-green-600">数据安全</span>，定期备份重要文件，设置合适的访问控制和安全措施。
+                            </p>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center mb-3">
+                                <i class="fa-solid fa-arrow-trend-up text-purple-500 mr-2"></i>
+                                <h4 class="font-semibold text-gray-700">持续优化</h4>
+                            </div>
+                            <p class="text-sm text-gray-600">
+                                服务器创建后，持续<span class="font-semibold text-purple-600">监控和优化</span>性能，根据玩家反馈调整设置，是保证长期稳定运行的关键。
+                            </p>
+                        </div>
+                    </div>
+                    <p class="text-lg text-gray-700 mt-6">
+                        祝你在Minecraft的世界中创造出精彩的服务器，与朋友们一起享受游戏的乐趣！
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 带宽需求图表
+        const bandwidthCtx = document.getElementById('bandwidthChart').getContext('2d');
+        const bandwidthChart = new Chart(bandwidthCtx, {
+            type: 'bar',
+            data: {
+                labels: ['5人以下', '10人服务器', '30人以上'],
+                datasets: [{
+                    label: '所需带宽 (Mbps)',
+                    data: [5, 10, 20],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.6)',
+                        'rgba(34, 197, 94, 0.6)',
+                        'rgba(168, 85, 247, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(59, 130, 246, 1)',
+                        'rgba(34, 197, 94, 1)',
+                        'rgba(168, 85, 247, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '带宽 (Mbps)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `至少需要 ${context.raw} Mbps 带宽`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
