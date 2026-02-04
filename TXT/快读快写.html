@@ -1,0 +1,467 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++11 快读快写优化指南</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #FFFFFF;
+        }
+        .card {
+            background-color: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 1.25rem; /* 20px */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
+            position: relative;
+        }
+        .highlight-gradient-blue {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.05));
+        }
+        .highlight-gradient-green {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0), rgba(34, 197, 94, 0.05));
+        }
+        .highlight-gradient-purple {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0), rgba(139, 92, 246, 0.05));
+        }
+        .highlight-gradient-amber {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0), rgba(245, 158, 11, 0.05));
+        }
+        .highlight-gradient-red {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0), rgba(239, 68, 68, 0.05));
+        }
+        .code-block {
+            background-color: #1E293B;
+            color: #E2E8F0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body class="bg-white">
+  <div class="fixed top-4 left-4 z-50">
+        <a href="javascript:history.back();" 
+           class="bg-white text-gray-800 hover:bg-gray-100 hover:text-blue-600 
+                  px-4 py-2 rounded-lg shadow-md transition-all duration-300
+                  flex items-center gap-2 border border-gray-200"
+           title="返回上一页">
+            <i class="fa-solid fa-arrow-left"></i> 返回主页
+        </a>
+    </div>
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+            <!-- Title Card -->
+            <div class="card md:col-span-4 p-8 flex flex-col justify-center items-center text-center">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <div class="text-blue-500 mb-4">
+                        <i class="fa-solid fa-bolt-lightning fa-3x"></i>
+                    </div>
+                    <h1 class="text-4xl md:text-6xl font-bold text-gray-800 mb-2">C++11 快读快写</h1>
+                    <p class="text-xl md:text-2xl text-gray-500">高性能输入输出优化指南</p>
+                    <div class="mt-6 text-sm text-gray-400">For Competitive Programming</div>
+                </div>
+            </div>
+
+            <!-- Problem Statement Card -->
+            <div class="card md:col-span-2 p-6 flex flex-col justify-center">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-red"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center mb-4">
+                        <i class="fa-solid fa-circle-exclamation text-red-500 text-2xl mr-3"></i>
+                        <h2 class="text-xl font-bold text-gray-800">为什么需要优化?</h2>
+                    </div>
+                    <p class="text-gray-600">
+                        C++ 标准输入输出流 <code class="bg-gray-100 px-1 py-0.5 rounded">cin/cout</code> 在默认情况下速度较慢，主要原因是为了兼容 C 标准库而设计的同步机制带来了额外开销。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Solution Overview Card -->
+            <div class="card md:col-span-2 p-6 flex flex-col justify-center">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center mb-4">
+                        <i class="fa-solid fa-lightbulb text-green-500 text-2xl mr-3"></i>
+                        <h2 class="text-xl font-bold text-gray-800">优化方法概览</h2>
+                    </div>
+                    <ul class="text-gray-600 space-y-2">
+                        <li class="flex items-start"><i class="fa-solid fa-check-circle text-green-500 mt-1 mr-2"></i> 关闭同步和解除绑定</li>
+                        <li class="flex items-start"><i class="fa-solid fa-check-circle text-green-500 mt-1 mr-2"></i> 使用 <code class="bg-gray-100 px-1 py-0.5 rounded">getchar</code> / <code class="bg-gray-100 px-1 py-0.5 rounded">putchar</code> 实现快读快写</li>
+                        <li class="flex items-start"><i class="fa-solid fa-check-circle text-green-500 mt-1 mr-2"></i> 基于 <code class="bg-gray-100 px-1 py-0.5 rounded">fread</code> / <code class="bg-gray-100 px-1 py-0.5 rounded">fwrite</code> 的缓冲区优化</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Method 1: Standard Stream Optimization -->
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">一、标准流优化方法</h2>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-2">核心机制</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-blue-800 mb-2">关闭同步</h4>
+                                <p class="text-blue-700 text-sm"><code class="bg-blue-100 px-1 py-0.5 rounded">ios::sync_with_stdio(false)</code></p>
+                                <p class="text-gray-600 text-sm mt-2">关闭 C++ 标准流与 C 标准流的同步，减少数据交换开销。</p>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-blue-800 mb-2">解除绑定</h4>
+                                <p class="text-blue-700 text-sm"><code class="bg-blue-100 px-1 py-0.5 rounded">cin.tie(nullptr)</code></p>
+                                <p class="text-gray-600 text-sm mt-2">解除 <code class="bg-gray-100 px-1 py-0.5 rounded">cin</code> 与 <code class="bg-gray-100 px-1 py-0.5 rounded">cout</code> 的绑定，避免每次输入前刷新输出缓冲。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-2">实现代码</h3>
+                        <div class="code-block">
+<pre><code>#include &lt;iostream&gt;
+using namespace std;
+
+int main() {
+    ios::sync_with_stdio(false);  // 关闭与C stdio的同步
+    cin.tie(nullptr);              // 解除cin对cout的绑定
+    // 你的代码
+    return 0;
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Method 2: getchar/putchar -->
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-green"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">二、基于 getchar 和 putchar 的快读快写</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">快读实现</h3>
+                            <div class="code-block">
+<pre><code>int read() {
+    int x = 0, w = 1;
+    char ch = 0;
+    while (ch &lt; '0' || ch &gt; '9') {
+        if (ch == '-') w = -1;
+        ch = getchar();
+    }
+    while (ch &gt;= '0' && ch &lt;= '9') {
+        x = x * 10 + (ch - '0');
+        ch = getchar();
+    }
+    return x * w;
+}</code></pre>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">快写实现 (非递归)</h3>
+                            <div class="code-block">
+<pre><code>inline void write(int x) {
+    static int sta[35];
+    int top = 0;
+    do {
+        sta[top++] = x % 10;
+        x /= 10;
+    } while (x);
+    while (top) putchar(sta[--top] + '0');
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-green-800 mb-2">进阶技巧: getchar_unlocked</h4>
+                        <p class="text-gray-600 text-sm mb-2">在单线程环境（如编程竞赛）中，可以使用 <code class="bg-green-100 px-1 py-0.5 rounded">getchar_unlocked</code> 替代 <code class="bg-green-100 px-1 py-0.5 rounded">getchar</code> 以获得更快的速度。</p>
+                        <div class="code-block text-xs">
+<pre><code>int readint() {
+    int k = 0, f = 1, c = getchar_unlocked();
+    for (; !isdigit(c); c = getchar_unlocked()) 
+        if (c == '-') f = -1;
+    for (; isdigit(c); c = getchar_unlocked()) 
+        k = k * 10 + (c ^ 48);
+    return k * f;
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Method 3: fread/fwrite -->
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-purple"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">三、基于 fread 和 fwrite 的缓冲区优化</h2>
+                    
+                    <p class="text-gray-600 mb-4">
+                        通过 <code class="bg-gray-100 px-1 py-0.5 rounded">fread</code> 一次性将输入文件读入一个巨大的缓冲区，比逐个字符读入要快得多。
+                    </p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">fread 快读</h3>
+                            <div class="code-block">
+<pre><code>char buf[1 &lt;&lt; 21], *p1 = buf, *p2 = buf;
+
+inline char getc() {
+    return p1 == p2 && (p2 = (p1 = buf) + fread(buf, 1, 1 &lt;&lt; 21, stdin), p1 == p2) 
+        ? EOF : *p1++;
+}
+
+inline int read() {
+    int x = 0, f = 1;
+    char ch = getc();
+    while (ch &lt; '0' || ch &gt; '9') {
+        if (ch == '-') f = -1;
+        ch = getc();
+    }
+    while (ch &gt;= '0' && ch &lt;= '9') {
+        x = x * 10 + (ch - '0');
+        ch = getc();
+    }
+    return x * f;
+}</code></pre>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">fwrite 快写</h3>
+                            <div class="code-block">
+<pre><code>char pbuf[1 &lt;&lt; 21], *pp = pbuf;
+
+inline void push(const char &c) {
+    if (pp - pbuf == (1 &lt;&lt; 21)) {
+        fwrite(pbuf, 1, (1 &lt;&lt; 21), stdout);
+        pp = pbuf;
+    }
+    *pp++ = c;
+}
+
+inline void write(int x) {
+    static int sta[35];
+    int top = 0;
+    if (x &lt; 0) { push('-'); x = -x; }
+    do { sta[top++] = x % 10; x /= 10; } while (x);
+    while (top) push(sta[--top] + '0');
+    push('\n');
+}
+
+inline void flush() {
+    fwrite(pbuf, 1, pp - pbuf, stdout);
+    pp = pbuf;
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Chart -->
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">性能对比</h2>
+                    <p class="text-gray-600 mb-4">处理 1000 万个整数时的性能表现 (单位: 秒)</p>
+                    <div class="w-full h-80">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Table -->
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">性能对比表</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-amber-50 text-amber-800 border-b border-amber-200">
+                                    <th class="px-4 py-3 text-left font-semibold">方法</th>
+                                    <th class="px-4 py-3 text-left font-semibold">时间 (秒)</th>
+                                    <th class="px-4 py-3 text-left font-semibold">相对速度</th>
+                                    <th class="px-4 py-3 text-left font-semibold">特点</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium">未优化 <code class="bg-gray-100 px-1 py-0.5 rounded">cin</code></td>
+                                    <td class="px-4 py-3">6.38</td>
+                                    <td class="px-4 py-3">1.0x</td>
+                                    <td class="px-4 py-3">最慢，但使用方便</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium">优化 <code class="bg-gray-100 px-1 py-0.5 rounded">cin</code> (关闭同步)</td>
+                                    <td class="px-4 py-3">2.05</td>
+                                    <td class="px-4 py-3">3.1x</td>
+                                    <td class="px-4 py-3">接近 <code class="bg-gray-100 px-1 py-0.5 rounded">scanf</code> 速度</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium"><code class="bg-gray-100 px-1 py-0.5 rounded">scanf</code></td>
+                                    <td class="px-4 py-3">2.01</td>
+                                    <td class="px-4 py-3">3.2x</td>
+                                    <td class="px-4 py-3">C 标准库方法</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium">基础 <code class="bg-gray-100 px-1 py-0.5 rounded">getchar</code> 快读</td>
+                                    <td class="px-4 py-3">0.3-0.5</td>
+                                    <td class="px-4 py-3">12.8x-21.3x</td>
+                                    <td class="px-4 py-3">比 <code class="bg-gray-100 px-1 py-0.5 rounded">scanf</code> 快 2-3 倍</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium"><code class="bg-gray-100 px-1 py-0.5 rounded">fread</code> 快读</td>
+                                    <td class="px-4 py-3">0.29</td>
+                                    <td class="px-4 py-3">22.0x</td>
+                                    <td class="px-4 py-3">批量读取更高效</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium"><code class="bg-gray-100 px-1 py-0.5 rounded">mmap</code> 映射</td>
+                                    <td class="px-4 py-3">0.25</td>
+                                    <td class="px-4 py-3">25.5x</td>
+                                    <td class="px-4 py-3">最快，但仅 Linux 支持</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Takeaways -->
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-blue"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">核心要点总结</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="text-blue-500 mb-2"><i class="fa-solid fa-cogs fa-xl"></i></div>
+                            <h3 class="font-semibold text-blue-800 mb-2">标准流优化</h3>
+                            <p class="text-gray-600 text-sm">通过 <code class="bg-blue-100 px-1 py-0.5 rounded">ios::sync_with_stdio(false)</code> 和 <code class="bg-blue-100 px-1 py-0.5 rounded">cin.tie(nullptr)</code> 获得 3x 性能提升。</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="text-green-500 mb-2"><i class="fa-solid fa-rocket fa-xl"></i></div>
+                            <h3 class="font-semibold text-green-800 mb-2">getchar 快读</h3>
+                            <p class="text-gray-600 text-sm">比 <code class="bg-green-100 px-1 py-0.5 rounded">scanf</code> 快约 2-3 倍，实现简单，是竞赛中最常用的方法。</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <div class="text-purple-500 mb-2"><i class="fa-solid fa-bolt fa-xl"></i></div>
+                            <h3 class="font-semibold text-purple-800 mb-2">fread 缓冲区优化</h3>
+                            <p class="text-gray-600 text-sm">比基础 <code class="bg-purple-100 px-1 py-0.5 rounded">getchar</code> 快约 1.5 倍，适合处理大规模数据。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Application Tips -->
+            <div class="card md:col-span-4 p-6">
+                <div class="absolute top-0 left-0 w-full h-full highlight-gradient-amber"></div>
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">实践建议</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">根据数据规模选择</h3>
+                            <ul class="text-gray-600 space-y-2">
+                                <li class="flex items-start"><i class="fa-solid fa-circle-dot text-amber-500 mt-1 mr-2"></i> 数据量 < 1e5: 标准流优化</li>
+                                <li class="flex items-start"><i class="fa-solid fa-circle-dot text-amber-500 mt-1 mr-2"></i> 数据量 1e5 - 1e6: <code class="bg-gray-100 px-1 py-0.5 rounded">getchar</code> 快读</li>
+                                <li class="flex items-start"><i class="fa-solid fa-circle-dot text-amber-500 mt-1 mr-2"></i> 数据量 > 1e6: <code class="bg-gray-100 px-1 py-0.5 rounded">fread</code> 缓冲区优化</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">避免常见错误</h3>
+                            <ul class="text-gray-600 space-y-2">
+                                <li class="flex items-start"><i class="fa-solid fa-triangle-exclamation text-amber-500 mt-1 mr-2"></i> 不要混用不同的输入输出函数</li>
+                                <li class="flex items-start"><i class="fa-solid fa-triangle-exclamation text-amber-500 mt-1 mr-2"></i> 使用缓冲区快写时，程序结束前必须调用 <code class="bg-gray-100 px-1 py-0.5 rounded">flush</code></li>
+                                <li class="flex items-start"><i class="fa-solid fa-triangle-exclamation text-amber-500 mt-1 mr-2"></i> 注意平台差异 (如 <code class="bg-gray-100 px-1 py-0.5 rounded">mmap</code> 仅 Linux 支持)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    // Performance Chart
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['未优化 cin', '优化 cin', 'scanf', 'getchar 快读', 'fread 快读', 'mmap 映射'],
+            datasets: [{
+                label: '时间 (秒)',
+                data: [6.38, 2.05, 2.01, 0.4, 0.29, 0.25], // 使用 0.4 作为 getchar 的平均值
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.7)',
+                    'rgba(59, 130, 246, 0.7)',
+                    'rgba(168, 85, 247, 0.7)',
+                    'rgba(34, 197, 94, 0.7)',
+                    'rgba(139, 92, 246, 0.7)',
+                    'rgba(245, 158, 11, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(168, 85, 247, 1)',
+                    'rgba(34, 197, 94, 1)',
+                    'rgba(139, 92, 246, 1)',
+                    'rgba(245, 158, 11, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '时间 (秒)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '输入输出方法'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y + ' 秒';
+                                // 添加相对速度信息
+                                const baseTime = 6.38; // 未优化 cin 的时间
+                                const relativeSpeed = (baseTime / context.parsed.y).toFixed(1);
+                                label += ` (${relativeSpeed}x)`;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+</html>
