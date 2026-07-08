@@ -1,0 +1,49 @@
+/* ============================================================
+   style.css - 塔防游戏样式
+   适配 800x600 画布，简洁干净
+   ============================================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none; /* 防止选中文字/画布 */
+}
+
+body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+    margin: 0;
+    padding: 16px;
+}
+
+/* ---- 画布容器 ---- */
+#gameCanvas {
+    display: block;
+    width: 800px;
+    height: 600px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    background: #f5f5f5;
+    cursor: crosshair;
+    image-rendering: pixelated; /* 保持清晰 */
+}
+
+/* ---- 响应式（小屏幕适配） ---- */
+@media (max-width: 840px) {
+    #gameCanvas {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 800 / 600;
+        border-radius: 8px;
+    }
+}
+
+/* ---- 辅助类（备用） ---- */
+.hidden {
+    display: none !important;
+}
