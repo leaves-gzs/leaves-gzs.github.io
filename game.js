@@ -1235,7 +1235,7 @@ class Enemy {
     }
 
     getTypeLabel() {
-        const labels = ['N', 'F', 'T', 'E', 'G', 'Gi', 'AM', 'AR', 'B1', 'B2', 'B3', 'S', 'WC'];
+        const labels = ['普', 'F', 'T', 'E', 'G', 'Gi', 'AM', 'AR', 'B1', 'B2', 'B3', 'S', 'WC'];
         return labels[this.type] || '?';
     }
 
