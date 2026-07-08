@@ -1,12 +1,32 @@
 // ================================================================
-// game.js - 塔防游戏完整逻辑
-// 移植自 C++ Win32 版本，使用 Canvas 2D 绘制
+// game.js - 塔防游戏完整逻辑（视觉升级版）
+// 新增：炮塔造型升级、子弹拖尾、UI美化
 // ================================================================
 
-// ---------- 严格模式 ----------
 "use strict";
 
-// ---------- 常量 ----------
+// ---------- 画布扩展方法 ----------
+// 为 Canvas 添加上下文增加 roundRect 方法（用于圆角矩形）
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, radii) {
+        const r = typeof radii === 'number' ? radii : (radii || 0);
+        this.moveTo(x + r, y);
+        this.lineTo(x + w - r, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + r);
+        this.lineTo(x + w, y + h - r);
+        this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        this.lineTo(x + r, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - r);
+        this.lineTo(x, y + r);
+        this.quadraticCurveTo(x, y, x + r, y);
+        return this;
+    };
+}
+
+// ================================================================
+// 1. 常量与工具函数
+// ================================================================
+
 const WIN_WIDTH = 800;
 const WIN_HEIGHT = 600;
 const INIT_GOLD = 800;
@@ -14,19 +34,19 @@ const INIT_LIVES = 20;
 const SPAWN_INTERVAL = 0.8;
 const MAX_DAMAGE_MULTIPLIER = 256.0;
 
-// ---------- 颜色工具 ----------
 function COLOR(r, g, b) {
     return `rgb(${r|0},${g|0},${b|0})`;
 }
 
-// ---------- 距离函数 ----------
 function distance(x1, y1, x2, y2) {
-    const dx = x1 - x2, dy = y1 - y2;
+    const dx = x1 - x2,
+        dy = y1 - y2;
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-// ---------- 路径 ----------
+// 路径定义
 let g_path = [];
+
 function initPath() {
     g_path = [
         { x: 0, y: 300 },
@@ -39,7 +59,10 @@ function initPath() {
 }
 initPath();
 
-// ---------- 枚举 ----------
+// ================================================================
+// 2. 枚举定义
+// ================================================================
+
 const GameDifficulty = {
     DIFF_EASY: 0,
     DIFF_NORMAL: 1,
@@ -110,11 +133,48 @@ const WeaponType = {
     WT_BULWARK: 25
 };
 
-// ---------- 全局游戏指针 ----------
 let g_gamePtr = null;
 
 // ================================================================
-// Bullet 类
+// 3. 粒子系统（用于特效）
+// ================================================================
+class Particle {
+    constructor(x, y, color, vx, vy, size, life) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.vx = vx;
+        this.vy = vy;
+        this.size = size;
+        this.life = life;
+        this.maxLife = life;
+        this.alive = true;
+    }
+
+    update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.vy += 60 * dt; // 轻微重力
+        this.life -= dt;
+        if (this.life <= 0) this.alive = false;
+    }
+
+    draw(ctx) {
+        const alpha = Math.max(0, this.life / this.maxLife);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, Math.max(0.5, this.size * alpha), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ================================================================
+// 4. Bullet 类（子弹 - 带拖尾特效）
 // ================================================================
 class Bullet {
     constructor(start, target, source, speed, damage, isCritical = false, critMultiplier = 1.5) {
@@ -126,6 +186,8 @@ class Bullet {
         this.active = true;
         this.isCritical = isCritical;
         this.critMultiplier = critMultiplier;
+        this.trail = []; // 拖尾轨迹点
+        this.trailLength = 12; // 拖尾长度
     }
 
     update(dt) {
@@ -137,10 +199,25 @@ class Bullet {
         const dy = this.target.pos.y - this.pos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const move = this.speed * dt;
+
+        // 记录轨迹点
+        this.trail.push({ x: this.pos.x, y: this.pos.y });
+        if (this.trail.length > this.trailLength) {
+            this.trail.shift();
+        }
+
         if (move >= dist) {
             let finalDamage = this.damage;
-            if (this.isCritical) finalDamage = Math.floor(this.damage * this.critMultiplier);
+            if (this.isCritical) {
+                finalDamage = Math.floor(this.damage * this.critMultiplier);
+            }
             const killed = this.target.takeDamage(finalDamage);
+
+            // 命中特效粒子
+            if (g_gamePtr) {
+                g_gamePtr.spawnHitParticles(this.target.pos.x, this.target.pos.y, this.isCritical);
+            }
+
             if (this.source && g_gamePtr) {
                 const ls = g_gamePtr.getLifeStealBonus();
                 if (ls > 0) {
@@ -151,23 +228,62 @@ class Bullet {
             this.active = false;
             return;
         }
+
         this.pos.x += (dx / dist) * move;
         this.pos.y += (dy / dist) * move;
     }
 
     draw(ctx) {
         if (!this.active) return;
-        const color = this.isCritical ? COLOR(255, 50, 50) : COLOR(255, 255, 0);
-        ctx.fillStyle = color;
-        const size = this.isCritical ? 7 : 4;
+
+        // ---- 绘制拖尾 ----
+        for (let i = 0; i < this.trail.length; i++) {
+            const t = i / this.trail.length;
+            const alpha = t * 0.6;
+            const size = (1 - t) * 3 + 1;
+            const color = this.isCritical ?
+                `rgba(255,50,50,${alpha})` :
+                `rgba(255,220,50,${alpha})`;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(this.trail[i].x, this.trail[i].y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // ---- 绘制子弹主体（发光效果） ----
+        ctx.save();
+        const grad = ctx.createRadialGradient(
+            this.pos.x - 2, this.pos.y - 2, 1,
+            this.pos.x, this.pos.y, this.isCritical ? 10 : 7
+        );
+        if (this.isCritical) {
+            grad.addColorStop(0, '#ff6666');
+            grad.addColorStop(0.5, '#ff2222');
+            grad.addColorStop(1, 'rgba(255,0,0,0.2)');
+        } else {
+            grad.addColorStop(0, '#ffff88');
+            grad.addColorStop(0.5, '#ffdd00');
+            grad.addColorStop(1, 'rgba(255,200,0,0.2)');
+        }
+        ctx.fillStyle = grad;
+        ctx.shadowColor = this.isCritical ? '#ff0000' : '#ffdd00';
+        ctx.shadowBlur = this.isCritical ? 25 : 18;
         ctx.beginPath();
-        ctx.arc(this.pos.x, this.pos.y, size, 0, Math.PI * 2);
+        ctx.arc(this.pos.x, this.pos.y, this.isCritical ? 6 : 4.5, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 高光
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.beginPath();
+        ctx.arc(this.pos.x - 1.5, this.pos.y - 2, this.isCritical ? 2.5 : 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
     }
 }
 
 // ================================================================
-// Turret 类
+// 5. Turret 类（炮塔 - 视觉升级版）
 // ================================================================
 class Turret {
     constructor(x, y, type = TurretType.TT_NORMAL) {
@@ -200,7 +316,11 @@ class Turret {
         this.reviveCooldown = 0;
         this.soulReturnCD = 0;
 
-        // 特殊炮塔状态
+        // 炮口闪光
+        this.muzzleFlash = 0;
+        this.muzzleAngle = 0;
+
+        // 特殊状态
         this.heatTarget = null;
         this.heatAccumulate = 0;
         this.heatDamage = 0;
@@ -211,7 +331,6 @@ class Turret {
         this.teleportCD = 10;
         this.teleportTimer = 0;
 
-        // 新炮塔
         this.resonanceTargets = [];
         this.resonanceTimer = 0;
         this.soulLinkTarget = null;
@@ -220,7 +339,10 @@ class Turret {
         this.poisonTimer = 0;
         this.staticTargets = [];
 
-        // 根据类型初始化
+        this._initStats(type);
+    }
+
+    _initStats(type) {
         switch (type) {
             case TurretType.TT_NORMAL:
                 this.range = 180;
@@ -238,7 +360,6 @@ class Turret {
                 this.baseBulletSpeed = 320;
                 this.cost = 80;
                 this.baseHp = 120;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_RAPID:
                 this.range = 120;
@@ -247,7 +368,6 @@ class Turret {
                 this.baseBulletSpeed = 280;
                 this.cost = 40;
                 this.baseHp = 120;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_TANK:
                 this.range = 130;
@@ -256,7 +376,6 @@ class Turret {
                 this.baseBulletSpeed = 220;
                 this.cost = 60;
                 this.baseHp = 1200;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_HEAL:
                 this.range = 160;
@@ -274,7 +393,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 30;
                 this.baseHp = 9999;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_ICE:
                 this.range = 0;
@@ -283,7 +401,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 500;
                 this.baseHp = 220;
-                this.baseHealRate = 0;
                 this.iceDuration = 3.5;
                 break;
             case TurretType.TT_HEAT:
@@ -293,7 +410,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 1000;
                 this.baseHp = 300;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_GRAVITY:
                 this.range = 200;
@@ -302,7 +418,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 1000;
                 this.baseHp = 300;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_WIND:
                 this.range = 0;
@@ -311,7 +426,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 1000;
                 this.baseHp = 300;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_TELEPORT:
                 this.range = 0;
@@ -320,7 +434,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 500;
                 this.baseHp = 200;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_RESONANCE:
                 this.range = 180;
@@ -329,7 +442,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 500;
                 this.baseHp = 200;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_SOUL_LINK:
                 this.range = 250;
@@ -338,7 +450,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 500;
                 this.baseHp = 200;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_TOXIC_CATALYST:
                 this.range = 180;
@@ -347,7 +458,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 500;
                 this.baseHp = 200;
-                this.baseHealRate = 0;
                 break;
             case TurretType.TT_STATIC_ATTACH:
                 this.range = 200;
@@ -356,7 +466,6 @@ class Turret {
                 this.baseBulletSpeed = 0;
                 this.cost = 500;
                 this.baseHp = 200;
-                this.baseHealRate = 0;
                 break;
         }
         this.damage = this.baseDamage * this.level;
@@ -395,6 +504,7 @@ class Turret {
 
     findTarget(enemies) {
         if (this.isDead) return;
+
         if (this.type === TurretType.TT_HEAT) {
             if (this.heatTarget && this.heatTarget.alive) {
                 const d = distance(this.pos.x, this.pos.y, this.heatTarget.pos.x, this.heatTarget.pos.y);
@@ -415,11 +525,13 @@ class Turret {
             if (!best) this.heatAccumulate = 0;
             return;
         }
+
         if (this.type === TurretType.TT_GRAVITY || this.type === TurretType.TT_WIND ||
             this.type === TurretType.TT_TELEPORT || this.type === TurretType.TT_SOUL_LINK) {
             this.target = null;
             return;
         }
+
         this.target = null;
         let minDist = this.range;
         for (const e of enemies) {
@@ -506,90 +618,189 @@ class Turret {
             closest.pos = { x: g_path[0].x, y: g_path[0].y };
             closest.pathIndex = 0;
             this.teleportTimer = this.teleportCD;
+            // 传送特效粒子
+            if (g_gamePtr) {
+                g_gamePtr.spawnTeleportParticles(closest.pos.x, closest.pos.y);
+            }
         }
     }
 
-    // ---- 绘制 ----
+    // ============================================================
+    // 绘制炮塔（视觉升级版）
+    // ============================================================
     draw(ctx) {
         if (this.isDead) return;
+        const px = this.pos.x,
+            py = this.pos.y;
 
-        const px = this.pos.x, py = this.pos.y;
-
-        // 根据类型绘制
         ctx.save();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
 
+        // ---- 根据类型绘制精致炮塔 ----
         switch (this.type) {
+            // -------- 普通塔：蓝色水晶 --------
             case TurretType.TT_NORMAL: {
-                ctx.fillStyle = COLOR(0, 0, 255);
+                const grad = ctx.createRadialGradient(px - 4, py - 5, 2, px, py, 16);
+                grad.addColorStop(0, '#66bbff');
+                grad.addColorStop(0.5, '#2277dd');
+                grad.addColorStop(1, '#004488');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(50,150,255,0.4)';
+                ctx.shadowBlur = 15;
                 ctx.beginPath();
                 ctx.arc(px, py, 15, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.stroke();
+                ctx.shadowBlur = 0;
+                // 高光
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath();
+                ctx.arc(px - 4, py - 5, 5, 0, Math.PI * 2);
+                ctx.fill();
                 break;
             }
+
+            // -------- 狙击塔：红色棱镜 --------
             case TurretType.TT_SNIPER: {
-                ctx.fillStyle = COLOR(255, 0, 0);
-                ctx.fillRect(px - 15, py - 15, 30, 30);
-                ctx.strokeRect(px - 15, py - 15, 30, 30);
-                break;
-            }
-            case TurretType.TT_RAPID: {
-                ctx.fillStyle = COLOR(0, 255, 0);
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
+                grad.addColorStop(0, '#ff6666');
+                grad.addColorStop(0.6, '#cc2222');
+                grad.addColorStop(1, '#660000');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(255,0,0,0.4)';
+                ctx.shadowBlur = 15;
                 ctx.beginPath();
-                ctx.moveTo(px, py - 15);
-                ctx.lineTo(px - 15, py + 15);
-                ctx.lineTo(px + 15, py + 15);
-                ctx.closePath();
+                ctx.roundRect(px - 14, py - 14, 28, 28, 4);
                 ctx.fill();
-                ctx.stroke();
-                break;
-            }
-            case TurretType.TT_TANK: {
-                ctx.fillStyle = COLOR(128, 128, 0);
-                ctx.beginPath();
-                ctx.moveTo(px, py - 18);
-                ctx.lineTo(px + 18, py);
-                ctx.lineTo(px, py + 18);
-                ctx.lineTo(px - 18, py);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = COLOR(255, 215, 0);
-                ctx.lineWidth = 3;
-                ctx.stroke();
-                break;
-            }
-            case TurretType.TT_HEAL: {
-                ctx.fillStyle = COLOR(255, 192, 203);
-                ctx.beginPath();
-                ctx.ellipse(px, py, 12, 8, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = COLOR(0, 255, 0);
+                ctx.shadowBlur = 0;
+                // 瞄准十字
+                ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(px - 8, py);
-                ctx.lineTo(px + 8, py);
-                ctx.moveTo(px, py - 8);
-                ctx.lineTo(px, py + 8);
+                ctx.moveTo(px - 18, py);
+                ctx.lineTo(px + 18, py);
+                ctx.moveTo(px, py - 18);
+                ctx.lineTo(px, py + 18);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(px, py, 6, 0, Math.PI * 2);
                 ctx.stroke();
                 break;
             }
-            case TurretType.TT_SPIKE: {
-                ctx.fillStyle = COLOR(139, 69, 19);
+
+            // -------- 速射塔：绿色三角 --------
+            case TurretType.TT_RAPID: {
+                const grad = ctx.createRadialGradient(px - 2, py - 4, 2, px, py, 16);
+                grad.addColorStop(0, '#66ff88');
+                grad.addColorStop(0.6, '#22cc44');
+                grad.addColorStop(1, '#006622');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(0,255,100,0.3)';
+                ctx.shadowBlur = 12;
                 ctx.beginPath();
-                ctx.moveTo(px, py - 12);
-                ctx.lineTo(px - 12, py + 12);
-                ctx.lineTo(px + 12, py + 12);
+                ctx.moveTo(px, py - 16);
+                ctx.lineTo(px - 16, py + 14);
+                ctx.lineTo(px + 16, py + 14);
                 ctx.closePath();
                 ctx.fill();
+                ctx.shadowBlur = 0;
+                // 枪管
+                ctx.fillStyle = '#44aa66';
+                ctx.fillRect(px - 3, py - 20, 6, 8);
+                break;
+            }
+
+            // -------- 肉盾塔：金色六边形 --------
+            case TurretType.TT_TANK: {
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 18);
+                grad.addColorStop(0, '#ffdd66');
+                grad.addColorStop(0.5, '#ccaa22');
+                grad.addColorStop(1, '#665500');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(255,200,0,0.3)';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const a = i * Math.PI / 3 - Math.PI / 6;
+                    const r = 17;
+                    if (i === 0) ctx.moveTo(px + r * Math.cos(a), py + r * Math.sin(a));
+                    else ctx.lineTo(px + r * Math.cos(a), py + r * Math.sin(a));
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // 盾牌标记
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.font = '18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🛡', px, py + 1);
+                break;
+            }
+
+            // -------- 治疗塔：粉色爱心 --------
+            case TurretType.TT_HEAL: {
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 14);
+                grad.addColorStop(0, '#ff88aa');
+                grad.addColorStop(0.6, '#ee4477');
+                grad.addColorStop(1, '#990044');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(255,100,150,0.4)';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(px - 5, py - 3, 10, 0, Math.PI * 2);
+                ctx.arc(px + 5, py - 3, 10, 0, Math.PI * 2);
+                ctx.moveTo(px - 12, py - 2);
+                ctx.lineTo(px, py + 12);
+                ctx.lineTo(px + 12, py - 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // 十字
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px - 6, py);
+                ctx.lineTo(px + 6, py);
+                ctx.moveTo(px, py - 6);
+                ctx.lineTo(px, py + 6);
                 ctx.stroke();
                 break;
             }
+
+            // -------- 地刺塔：棕色尖刺 --------
+            case TurretType.TT_SPIKE: {
+                ctx.fillStyle = '#8B6914';
+                ctx.shadowColor = 'rgba(139,69,19,0.3)';
+                ctx.shadowBlur = 8;
+                for (let i = 0; i < 8; i++) {
+                    const a = i * Math.PI / 4;
+                    const r1 = 10,
+                        r2 = 16;
+                    const x1 = px + r1 * Math.cos(a);
+                    const y1 = py + r1 * Math.sin(a);
+                    const x2 = px + r2 * Math.cos(a);
+                    const y2 = py + r2 * Math.sin(a);
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(x1 + 4 * Math.cos(a + Math.PI / 2), y1 + 4 * Math.sin(a + Math.PI / 2));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.shadowBlur = 0;
+                break;
+            }
+
+            // -------- 寒冰塔：冰晶 --------
             case TurretType.TT_ICE: {
-                ctx.fillStyle = COLOR(0, 191, 255);
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
+                grad.addColorStop(0, '#88ddff');
+                grad.addColorStop(0.5, '#44aadd');
+                grad.addColorStop(1, '#005577');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(0,200,255,0.5)';
+                ctx.shadowBlur = 20;
                 ctx.beginPath();
                 for (let i = 0; i < 6; i++) {
                     const a = i * Math.PI / 3 - Math.PI / 6;
@@ -599,64 +810,114 @@ class Turret {
                 }
                 ctx.closePath();
                 ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
+                ctx.shadowBlur = 0;
+                // 冰晶纹路
+                ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(px - 8, py);
-                ctx.lineTo(px + 8, py);
-                ctx.moveTo(px, py - 8);
-                ctx.lineTo(px, py + 8);
+                ctx.moveTo(px, py - 10);
+                ctx.lineTo(px, py + 10);
+                ctx.moveTo(px - 8, py - 6);
+                ctx.lineTo(px + 8, py + 6);
+                ctx.moveTo(px + 8, py - 6);
+                ctx.lineTo(px - 8, py + 6);
                 ctx.stroke();
                 break;
             }
+
+            // -------- 热力塔：火焰 --------
             case TurretType.TT_HEAT: {
-                ctx.fillStyle = COLOR(255, 100, 0);
+                const grad = ctx.createRadialGradient(px - 2, py - 4, 2, px, py, 18);
+                grad.addColorStop(0, '#ff8844');
+                grad.addColorStop(0.4, '#ff4400');
+                grad.addColorStop(0.8, '#cc2200');
+                grad.addColorStop(1, '#661100');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(255,100,0,0.5)';
+                ctx.shadowBlur = 25;
                 ctx.beginPath();
                 ctx.moveTo(px, py - 18);
-                ctx.lineTo(px - 12, py + 10);
+                ctx.lineTo(px - 14, py + 10);
                 ctx.lineTo(px - 6, py + 6);
                 ctx.lineTo(px + 6, py + 6);
-                ctx.lineTo(px + 12, py + 10);
+                ctx.lineTo(px + 14, py + 10);
                 ctx.closePath();
                 ctx.fill();
-                ctx.stroke();
+                ctx.shadowBlur = 0;
+                // 热量显示
                 if (this.heatAccumulate > 0) {
-                    ctx.fillStyle = '#000';
-                    ctx.font = '10px sans-serif';
-                    ctx.fillText(this.heatAccumulate.toFixed(1), px - 8, py + 20);
+                    ctx.fillStyle = `rgba(255,200,50,${Math.min(1, this.heatAccumulate / 5)})`;
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText('🔥', px, py + 20);
                 }
                 break;
             }
+
+            // -------- 引力塔：暗紫漩涡 --------
             case TurretType.TT_GRAVITY: {
-                ctx.fillStyle = COLOR(50, 50, 150);
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 17);
+                grad.addColorStop(0, '#9966cc');
+                grad.addColorStop(0.6, '#663399');
+                grad.addColorStop(1, '#331166');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(150,50,255,0.4)';
+                ctx.shadowBlur = 18;
                 ctx.beginPath();
                 ctx.arc(px, py, 16, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.stroke();
+                ctx.shadowBlur = 0;
+                // 螺旋纹
+                ctx.strokeStyle = 'rgba(200,150,255,0.3)';
+                ctx.lineWidth = 1.5;
+                for (let i = 0; i < 3; i++) {
+                    const startA = i * 2.094;
+                    ctx.beginPath();
+                    for (let t = 0; t < 1; t += 0.02) {
+                        const a = startA + t * 4;
+                        const r = 4 + t * 12;
+                        const x = px + r * Math.cos(a);
+                        const y = py + r * Math.sin(a);
+                        if (t === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                }
                 if (this.gravityActive) {
-                    ctx.strokeStyle = COLOR(200, 200, 255);
+                    ctx.strokeStyle = 'rgba(200,150,255,0.3)';
                     ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 6]);
                     ctx.beginPath();
                     ctx.arc(this.gravityCenter.x, this.gravityCenter.y, 60, 0, Math.PI * 2);
                     ctx.stroke();
+                    ctx.setLineDash([]);
                 }
                 break;
             }
+
+            // -------- 风灵塔：青色旋风 --------
             case TurretType.TT_WIND: {
-                ctx.fillStyle = COLOR(100, 200, 255);
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 14);
+                grad.addColorStop(0, '#88eeff');
+                grad.addColorStop(0.6, '#44aacc');
+                grad.addColorStop(1, '#006688');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(0,200,255,0.3)';
+                ctx.shadowBlur = 15;
                 ctx.beginPath();
-                ctx.arc(px, py, 12, 0, Math.PI * 2);
+                ctx.arc(px, py, 13, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = '#fff';
+                ctx.shadowBlur = 0;
+                // 旋风标记
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
                 ctx.lineWidth = 2;
                 for (let i = 0; i < 3; i++) {
-                    const a = i * 2.094;
-                    const x1 = px + 10 * Math.cos(a);
-                    const y1 = py + 10 * Math.sin(a);
-                    const x2 = px + 18 * Math.cos(a + 0.5);
-                    const y2 = py + 18 * Math.sin(a + 0.5);
+                    const a = i * 2.094 + Date.now() * 0.001;
+                    const x1 = px + 6 * Math.cos(a);
+                    const y1 = py + 6 * Math.sin(a);
+                    const x2 = px + 15 * Math.cos(a + 0.5);
+                    const y2 = py + 15 * Math.sin(a + 0.5);
                     ctx.beginPath();
                     ctx.moveTo(x1, y1);
                     ctx.lineTo(x2, y2);
@@ -664,13 +925,22 @@ class Turret {
                 }
                 break;
             }
+
+            // -------- 传送塔：紫色传送门 --------
             case TurretType.TT_TELEPORT: {
-                ctx.fillStyle = COLOR(200, 50, 200);
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 15);
+                grad.addColorStop(0, '#dd88ff');
+                grad.addColorStop(0.5, '#aa44dd');
+                grad.addColorStop(1, '#6600aa');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(200,50,255,0.5)';
+                ctx.shadowBlur = 20;
                 ctx.beginPath();
                 ctx.arc(px, py, 14, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = COLOR(255, 255, 0);
+                ctx.shadowBlur = 0;
+                // 传送符号
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(px - 10, py);
@@ -678,164 +948,240 @@ class Turret {
                 ctx.moveTo(px, py - 10);
                 ctx.lineTo(px, py + 10);
                 ctx.stroke();
-                ctx.fillStyle = '#000';
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(px, py, 8, 0, Math.PI * 2);
+                ctx.stroke();
+                // 冷却显示
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
                 ctx.font = '10px sans-serif';
-                ctx.fillText(this.teleportTimer.toFixed(1), px - 8, py + 18);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(this.teleportTimer.toFixed(1), px, py - 18);
                 break;
             }
+
+            // -------- 共振塔：紫水晶 --------
             case TurretType.TT_RESONANCE: {
-                ctx.fillStyle = COLOR(180, 0, 255);
+                const grad = ctx.createRadialGradient(px - 4, py - 5, 2, px, py, 16);
+                grad.addColorStop(0, '#cc88ff');
+                grad.addColorStop(0.5, '#8844dd');
+                grad.addColorStop(1, '#440088');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(180,50,255,0.4)';
+                ctx.shadowBlur = 18;
                 ctx.beginPath();
-                ctx.arc(px, py, 15, 0, Math.PI * 2);
+                ctx.roundRect(px - 13, py - 13, 26, 26, 6);
                 ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = '#fff';
+                ctx.shadowBlur = 0;
+                // 共振波
+                ctx.strokeStyle = 'rgba(200,150,255,0.2)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 3; i++) {
+                    const r = 6 + i * 5 + Math.sin(Date.now() * 0.002 + i) * 2;
+                    ctx.beginPath();
+                    ctx.arc(px, py, r, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                break;
+            }
+
+            // -------- 灵魂链接塔：青绿连结 --------
+            case TurretType.TT_SOUL_LINK: {
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
+                grad.addColorStop(0, '#66ffcc');
+                grad.addColorStop(0.5, '#22aa88');
+                grad.addColorStop(1, '#005544');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(0,255,200,0.4)';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(px, py, 14, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // 链接标记
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(px - 6, py - 2);
-                ctx.lineTo(px + 6, py - 2);
-                ctx.moveTo(px - 2, py - 6);
+                ctx.arc(px - 5, py - 4, 4, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(px + 5, py + 4, 4, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(px - 4, py - 3);
+                ctx.lineTo(px + 4, py + 3);
+                ctx.stroke();
+                if (this.soulLinkTarget && this.soulLinkTarget.alive) {
+                    ctx.strokeStyle = 'rgba(0,255,200,0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(this.soulLinkTarget.pos.x, this.soulLinkTarget.pos.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                break;
+            }
+
+            // -------- 剧毒塔：翠绿毒液 --------
+            case TurretType.TT_TOXIC_CATALYST: {
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
+                grad.addColorStop(0, '#88ff44');
+                grad.addColorStop(0.5, '#44cc00');
+                grad.addColorStop(1, '#006600');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(100,255,0,0.4)';
+                ctx.shadowBlur = 18;
+                ctx.beginPath();
+                ctx.arc(px, py, 14, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // 毒液滴
+                ctx.fillStyle = 'rgba(200,255,100,0.4)';
+                for (let i = 0; i < 4; i++) {
+                    const a = i * Math.PI / 2 + Date.now() * 0.001;
+                    const r = 10 + Math.sin(Date.now() * 0.003 + i) * 3;
+                    ctx.beginPath();
+                    ctx.arc(px + r * Math.cos(a), py + r * Math.sin(a), 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+            }
+
+            // -------- 静电塔：金黄闪电 --------
+            case TurretType.TT_STATIC_ATTACH: {
+                const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
+                grad.addColorStop(0, '#ffdd44');
+                grad.addColorStop(0.5, '#dd9900');
+                grad.addColorStop(1, '#885500');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = 'rgba(255,200,0,0.4)';
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(px, py, 14, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // 闪电标记
+                ctx.strokeStyle = 'rgba(255,255,200,0.6)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(px - 3, py - 10);
+                ctx.lineTo(px + 5, py - 3);
+                ctx.lineTo(px - 1, py - 1);
+                ctx.lineTo(px + 7, py + 6);
                 ctx.lineTo(px - 2, py + 6);
                 ctx.stroke();
                 break;
             }
-            case TurretType.TT_SOUL_LINK: {
-                ctx.fillStyle = COLOR(0, 200, 200);
-                ctx.beginPath();
-                ctx.arc(px, py, 15, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(px - 5, py - 5, 5, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.arc(px + 5, py + 5, 5, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(px - 5, py - 5);
-                ctx.lineTo(px + 5, py + 5);
-                ctx.stroke();
-                break;
-            }
-            case TurretType.TT_TOXIC_CATALYST: {
-                ctx.fillStyle = COLOR(0, 200, 0);
-                ctx.beginPath();
-                ctx.arc(px, py, 15, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = COLOR(255, 255, 0);
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(px, py, 4, 0, Math.PI * 2);
-                ctx.stroke();
-                break;
-            }
-            case TurretType.TT_STATIC_ATTACH: {
-                ctx.fillStyle = COLOR(255, 200, 0);
-                ctx.beginPath();
-                ctx.arc(px, py, 15, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(px - 2, py - 8);
-                ctx.lineTo(px - 6, py - 2);
-                ctx.lineTo(px, py - 2);
-                ctx.lineTo(px - 4, py + 4);
-                ctx.lineTo(px + 4, py + 4);
-                ctx.stroke();
-                break;
-            }
         }
 
         ctx.restore();
 
-        // 目标指示线
-        if (this.type !== TurretType.TT_HEAL && this.type !== TurretType.TT_SPIKE &&
-            this.type !== TurretType.TT_ICE && this.type !== TurretType.TT_WIND &&
-            this.type !== TurretType.TT_GRAVITY && this.type !== TurretType.TT_TELEPORT &&
-            this.type !== TurretType.TT_SOUL_LINK && this.target && this.target.alive) {
-            const dx = this.target.pos.x - px;
-            const dy = this.target.pos.y - py;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            if (len > 0) {
-                ctx.save();
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.moveTo(px, py);
-                ctx.lineTo(px + (dx / len) * 22, py + (dy / len) * 22);
-                ctx.stroke();
-                ctx.restore();
-            }
+        // ---- 炮口闪光 ----
+        if (this.muzzleFlash > 0) {
+            ctx.save();
+            const flashLen = 22 * (this.muzzleFlash / 0.15);
+            ctx.translate(px, py);
+            ctx.rotate(this.muzzleAngle);
+            const grad = ctx.createLinearGradient(0, 0, flashLen, 0);
+            grad.addColorStop(0, 'rgba(255,255,200,0.9)');
+            grad.addColorStop(0.4, 'rgba(255,200,100,0.5)');
+            grad.addColorStop(1, 'rgba(255,200,100,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(0, -5);
+            ctx.lineTo(flashLen, 0);
+            ctx.lineTo(0, 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+            this.muzzleFlash -= 0.016;
         }
 
-        // 血条
+        // ---- 血条（升级版） ----
         const ratio = this.hp / this.maxHp;
-        const barWidth = 30;
+        const barWidth = 32;
+        const barY = py - 26;
         ctx.save();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(px - barWidth / 2, py - 24, barWidth, 6);
-        ctx.fillStyle = COLOR(0, 255, 0);
-        ctx.fillRect(px - barWidth / 2, py - 24, barWidth * ratio, 6);
+        // 背景
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.roundRect(px - barWidth / 2 - 1, barY - 1, barWidth + 2, 7, 3);
+        ctx.fill();
+        // 血条
+        const hpColor = ratio > 0.6 ? '#44dd44' : (ratio > 0.3 ? '#ddcc44' : '#dd4444');
+        ctx.fillStyle = hpColor;
+        ctx.shadowColor = hpColor;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.roundRect(px - barWidth / 2, barY, barWidth * Math.max(0, ratio), 5, 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // 边框
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.roundRect(px - barWidth / 2, barY, barWidth, 5, 2);
+        ctx.stroke();
         ctx.restore();
 
-        // 等级
+        // ---- 等级标签 ----
         ctx.save();
-        ctx.fillStyle = '#000';
-        ctx.font = '10px sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = 'bold 9px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Lv.' + this.level, px, py + 28);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('Lv' + this.level, px, py + 22);
         ctx.restore();
 
-        // 特殊标记
+        // ---- 特殊标记 ----
         const labels = {
-            [TurretType.TT_TANK]: '盾',
-            [TurretType.TT_HEAT]: '热',
-            [TurretType.TT_GRAVITY]: '引',
-            [TurretType.TT_WIND]: '风',
-            [TurretType.TT_TELEPORT]: '传',
-            [TurretType.TT_RESONANCE]: '共',
-            [TurretType.TT_SOUL_LINK]: '链',
-            [TurretType.TT_TOXIC_CATALYST]: '毒',
-            [TurretType.TT_STATIC_ATTACH]: '静'
+            [TurretType.TT_TANK]: '🛡',
+            [TurretType.TT_HEAT]: '🔥',
+            [TurretType.TT_GRAVITY]: '🌀',
+            [TurretType.TT_WIND]: '💨',
+            [TurretType.TT_TELEPORT]: '🌀',
+            [TurretType.TT_RESONANCE]: '💎',
+            [TurretType.TT_SOUL_LINK]: '🔗',
+            [TurretType.TT_TOXIC_CATALYST]: '☠',
+            [TurretType.TT_STATIC_ATTACH]: '⚡'
         };
         if (labels[this.type]) {
             ctx.save();
-            ctx.fillStyle = '#000';
-            ctx.font = '10px sans-serif';
+            ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(labels[this.type], px, py + 40);
+            ctx.textBaseline = 'top';
+            ctx.fillText(labels[this.type], px, py + 24);
             ctx.restore();
         }
 
-        // 冰霜范围
+        // ---- 寒冰范围 ----
         if (this.type === TurretType.TT_ICE && this.iceActive) {
             ctx.save();
-            ctx.strokeStyle = COLOR(0, 200, 255);
+            ctx.strokeStyle = 'rgba(0,200,255,0.2)';
             ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
+            ctx.setLineDash([4, 6]);
             ctx.beginPath();
             ctx.arc(this.icePos.x, this.icePos.y, 80, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
-            ctx.strokeStyle = COLOR(0, 150, 255);
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(this.icePos.x - 60, this.icePos.y - 60);
-            ctx.lineTo(this.icePos.x + 60, this.icePos.y + 60);
-            ctx.moveTo(this.icePos.x + 60, this.icePos.y - 60);
-            ctx.lineTo(this.icePos.x - 60, this.icePos.y + 60);
-            ctx.stroke();
+            // 冰晶粒子
+            for (let i = 0; i < 8; i++) {
+                const a = i * Math.PI / 4 + Date.now() * 0.0005;
+                const r = 60 + Math.sin(Date.now() * 0.002 + i) * 15;
+                ctx.fillStyle = `rgba(200,240,255,${0.1 + Math.sin(Date.now() * 0.003 + i) * 0.05})`;
+                ctx.beginPath();
+                ctx.arc(this.icePos.x + r * Math.cos(a), this.icePos.y + r * Math.sin(a), 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
             ctx.restore();
         }
     }
 
-    // ---- 更新 ----
+    // ---- 更新炮塔 ----
     update(dt, bullets, enemies) {
         if (this.isDead) return;
         if (this.type === TurretType.TT_HEAL) return;
@@ -915,7 +1261,8 @@ class Turret {
             if (this.iceTimer > 0) this.iceTimer -= dt;
             else {
                 const alive = [];
-                for (const e of enemies) if (e.alive) alive.push(e);
+                for (const e of enemies)
+                    if (e.alive) alive.push(e);
                 if (alive.length > 0) {
                     const idx = Math.floor(Math.random() * alive.length);
                     this.icePos = { x: alive[idx].pos.x, y: alive[idx].pos.y };
@@ -960,6 +1307,10 @@ class Turret {
                             e.hp -= explodeDmg;
                             if (e.hp <= 0) e.alive = false;
                         }
+                    }
+                    // 爆炸粒子
+                    if (g_gamePtr) {
+                        g_gamePtr.spawnExplosionParticles(this.target.pos.x, this.target.pos.y, '#aa44ff');
                     }
                     this.target.resonanceStacks = 0;
                 }
@@ -1029,6 +1380,10 @@ class Turret {
                         if (this.target.hp <= 0) this.target.alive = false;
                         e.hp -= dmg2;
                         if (e.hp <= 0) e.alive = false;
+                        // 闪电粒子
+                        if (g_gamePtr) {
+                            g_gamePtr.spawnLightningParticles(this.target.pos.x, this.target.pos.y, e.pos.x, e.pos.y);
+                        }
                     }
                 }
                 this.cooldown = 1 / this.fireRate;
@@ -1052,15 +1407,25 @@ class Turret {
             const critMultiplier = 1.5 + critDmgBonus;
             const fireRateMul = 1 + (g_gamePtr ? g_gamePtr.getAttackSpeedBonus() : 0);
             const actualFireRate = this.fireRate * fireRateMul;
+
+            // 创建子弹
             const b = new Bullet(this.pos, this.target, this, bulletSpeed, baseDamage, isCritical, critMultiplier);
             bullets.push(b);
+
+            // 炮口闪光
+            this.muzzleFlash = 0.15;
+            this.muzzleAngle = Math.atan2(
+                this.target.pos.y - this.pos.y,
+                this.target.pos.x - this.pos.x
+            );
+
             this.cooldown = 1 / actualFireRate;
         }
     }
 }
 
 // ================================================================
-// Enemy 类
+// 6. Enemy 类（敌人 - 视觉升级版）
 // ================================================================
 class Enemy {
     constructor(wave, type = EnemyType.ET_NORMAL) {
@@ -1093,6 +1458,7 @@ class Enemy {
             attackDmg = 0,
             attackRangeVal = 0;
         let baseArmorVal = 0;
+        this.emoji = '👾';
 
         switch (type) {
             case EnemyType.ET_NORMAL:
@@ -1100,118 +1466,131 @@ class Enemy {
                 baseSpeed = 60;
                 baseReward = 20;
                 baseRadius = 10;
-                baseColor = COLOR(255, 0, 0);
+                baseColor = COLOR(255, 80, 80);
                 baseArmorVal = 0;
+                this.emoji = '👾';
                 break;
             case EnemyType.ET_FAST:
                 baseHp = 10;
                 baseSpeed = 120;
                 baseReward = 25;
                 baseRadius = 8;
-                baseColor = COLOR(255, 255, 0);
+                baseColor = COLOR(255, 220, 50);
                 baseArmorVal = 0;
+                this.emoji = '💨';
                 break;
             case EnemyType.ET_TANK:
                 baseHp = 50;
                 baseSpeed = 30;
                 baseReward = 30;
                 baseRadius = 15;
-                baseColor = COLOR(0, 0, 255);
+                baseColor = COLOR(50, 100, 220);
                 baseArmorVal = 10;
+                this.emoji = '🛡';
                 break;
             case EnemyType.ET_ELITE:
                 baseHp = 35;
                 baseSpeed = 45;
                 baseReward = 35;
                 baseRadius = 12;
-                baseColor = COLOR(0, 255, 255);
+                baseColor = COLOR(50, 220, 220);
                 baseArmorVal = 5;
+                this.emoji = '⭐';
                 break;
             case EnemyType.ET_GHOST:
                 baseHp = 15;
                 baseSpeed = 130;
                 baseReward = 30;
                 baseRadius = 9;
-                baseColor = COLOR(255, 0, 255);
+                baseColor = COLOR(200, 80, 255);
                 baseArmorVal = 2;
+                this.emoji = '👻';
                 break;
             case EnemyType.ET_GIANT:
                 baseHp = 80;
                 baseSpeed = 20;
                 baseReward = 45;
                 baseRadius = 20;
-                baseColor = COLOR(0, 128, 128);
+                baseColor = COLOR(0, 180, 180);
                 baseArmorVal = 15;
+                this.emoji = '🗿';
                 break;
             case EnemyType.ET_ATTACK_MELEE:
                 baseHp = 30;
                 baseSpeed = 35;
                 baseReward = 40;
                 baseRadius = 12;
-                baseColor = COLOR(128, 64, 0);
+                baseColor = COLOR(180, 100, 40);
                 canAttack = true;
                 attackRateVal = 1.0;
                 attackDmg = 25;
                 attackRangeVal = 30;
                 baseArmorVal = 5;
+                this.emoji = '⚔️';
                 break;
             case EnemyType.ET_ATTACK_RANGED:
                 baseHp = 20;
                 baseSpeed = 50;
                 baseReward = 35;
                 baseRadius = 10;
-                baseColor = COLOR(0, 128, 255);
+                baseColor = COLOR(50, 180, 255);
                 canAttack = true;
                 attackRateVal = 2.0;
                 attackDmg = 10;
                 attackRangeVal = 150;
                 baseArmorVal = 3;
+                this.emoji = '🏹';
                 break;
             case EnemyType.ET_BOSS1:
                 baseHp = 200;
                 baseSpeed = 20;
                 baseReward = 100;
                 baseRadius = 25;
-                baseColor = COLOR(128, 0, 128);
+                baseColor = COLOR(180, 50, 200);
                 bossSkillType = 0;
                 baseArmorVal = 20;
+                this.emoji = '👑';
                 break;
             case EnemyType.ET_BOSS2:
                 baseHp = 300;
                 baseSpeed = 15;
                 baseReward = 150;
                 baseRadius = 30;
-                baseColor = COLOR(255, 140, 0);
+                baseColor = COLOR(255, 160, 0);
                 bossSkillType = 1;
                 baseArmorVal = 30;
+                this.emoji = '🔥';
                 break;
             case EnemyType.ET_BOSS3:
                 baseHp = 500;
                 baseSpeed = 10;
                 baseReward = 200;
                 baseRadius = 35;
-                baseColor = COLOR(139, 0, 0);
+                baseColor = COLOR(200, 30, 30);
                 bossSkillType = 2;
                 baseArmorVal = 40;
+                this.emoji = '💀';
                 break;
             case EnemyType.ET_SUMMONER:
                 baseHp = 60;
                 baseSpeed = 35;
                 baseReward = 80;
                 baseRadius = 18;
-                baseColor = COLOR(128, 0, 128);
+                baseColor = COLOR(160, 50, 200);
                 this.isSummoner = true;
                 this.summonCount = 2 + wave;
                 baseArmorVal = 8;
+                this.emoji = '🧙';
                 break;
             case EnemyType.ET_WAR_CRY:
                 baseHp = 40;
                 baseSpeed = 25;
                 baseReward = 50;
                 baseRadius = 14;
-                baseColor = COLOR(255, 100, 0);
+                baseColor = COLOR(255, 140, 0);
                 this.isWarCry = true;
                 baseArmorVal = 5;
+                this.emoji = '📯';
                 break;
         }
 
@@ -1235,7 +1614,7 @@ class Enemy {
     }
 
     getTypeLabel() {
-        const labels = ['普', 'F', 'T', 'E', 'G', 'Gi', 'AM', 'AR', 'B1', 'B2', 'B3', 'S', 'WC'];
+        const labels = ['N', 'F', 'T', 'E', 'G', 'Gi', 'AM', 'AR', 'B1', 'B2', 'B3', 'S', 'WC'];
         return labels[this.type] || '?';
     }
 
@@ -1254,6 +1633,7 @@ class Enemy {
             m.reward = Math.floor(m.reward / 2);
             m.radius = 8;
             m.color = COLOR(255, 165, 0);
+            m.emoji = '🟠';
             m.pos.x = this.pos.x + (Math.random() * 60 - 30);
             m.pos.y = this.pos.y + (Math.random() * 60 - 30);
             this.minions.push(m);
@@ -1288,7 +1668,6 @@ class Enemy {
             this.pos.y += (dy / dist) * move;
         }
 
-        // Boss技能
         if (this.type >= EnemyType.ET_BOSS1 && this.type <= EnemyType.ET_BOSS3) {
             this.activateBossSkill(dt, g_gamePtr ? g_gamePtr.enemies : []);
         }
@@ -1310,9 +1689,13 @@ class Enemy {
                     m.reward = Math.floor(m.reward / 2);
                     m.radius = 8;
                     m.color = COLOR(200, 100, 200);
+                    m.emoji = '🟣';
                     m.pos.x = this.pos.x + (Math.random() * 80 - 40);
                     m.pos.y = this.pos.y + (Math.random() * 80 - 40);
                     enemies.push(m);
+                }
+                if (g_gamePtr) {
+                    g_gamePtr.spawnExplosionParticles(this.pos.x, this.pos.y, '#cc44ff');
                 }
                 break;
             }
@@ -1323,11 +1706,17 @@ class Enemy {
                         e.slowFactor = 0.5;
                     }
                 }
+                if (g_gamePtr) {
+                    g_gamePtr.spawnExplosionParticles(this.pos.x, this.pos.y, '#ff8800');
+                }
                 break;
             }
             case 2: {
                 this.hp += this.maxHp * 0.5;
                 if (this.hp > this.maxHp * 1.5) this.hp = this.maxHp * 1.5;
+                if (g_gamePtr) {
+                    g_gamePtr.spawnExplosionParticles(this.pos.x, this.pos.y, '#ff2222');
+                }
                 break;
             }
         }
@@ -1337,7 +1726,14 @@ class Enemy {
         if (!this.alive) return false;
         const actualDmg = this.applyArmor(dmg);
         this.hp -= actualDmg;
-        if (this.hp <= 0) { this.alive = false; return true; }
+        if (this.hp <= 0) {
+            this.alive = false;
+            // 死亡粒子
+            if (g_gamePtr) {
+                g_gamePtr.spawnDeathParticles(this.pos.x, this.pos.y, this.color);
+            }
+            return true;
+        }
         return false;
     }
 
@@ -1380,83 +1776,150 @@ class Enemy {
         return false;
     }
 
+    // ---- 绘制敌人（视觉升级版） ----
     draw(ctx) {
         if (!this.alive) return;
         const px = this.pos.x,
             py = this.pos.y,
             r = this.radius;
 
-        // 主体
         ctx.save();
-        ctx.fillStyle = this.color;
+
+        // ---- 主体（带发光效果） ----
+        const grad = ctx.createRadialGradient(px - r * 0.3, py - r * 0.3, r * 0.1, px, py, r);
+        grad.addColorStop(0, this.lightenColor(this.color, 40));
+        grad.addColorStop(0.7, this.color);
+        grad.addColorStop(1, this.darkenColor(this.color, 40));
+        ctx.fillStyle = grad;
+
+        if (this.type === EnemyType.ET_GHOST) {
+            ctx.globalAlpha = 0.6 + Math.sin(Date.now() * 0.003) * 0.15;
+        }
+
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = this.type >= EnemyType.ET_BOSS1 ? 25 : 12;
         ctx.beginPath();
         ctx.arc(px, py, r, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
 
-        // Boss/召唤师/战争咆哮 边框
+        // ---- Boss/特殊敌人边框 ----
         if (this.type >= EnemyType.ET_BOSS1 || this.type === EnemyType.ET_SUMMONER || this.type === EnemyType.ET_WAR_CRY) {
-            ctx.strokeStyle = COLOR(255, 215, 0);
+            ctx.strokeStyle = 'rgba(255,215,0,0.6)';
             ctx.lineWidth = 2;
+            ctx.setLineDash([3, 4]);
             ctx.beginPath();
-            ctx.arc(px, py, r + 2, 0, Math.PI * 2);
+            ctx.arc(px, py, r + 3, 0, Math.PI * 2);
             ctx.stroke();
+            ctx.setLineDash([]);
         }
 
-        // 战争咆哮光环
+        // ---- 表情符号 ----
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.font = `${r * 0.9}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.emoji, px, py + 1);
+
+        // ---- 战争咆哮光环 ----
         if (this.isWarCry) {
-            ctx.strokeStyle = COLOR(255, 200, 100);
-            ctx.lineWidth = 1;
-            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = `rgba(255,200,100,${0.2 + Math.sin(Date.now() * 0.002) * 0.1})`;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 6]);
             ctx.beginPath();
             ctx.arc(px, py, this.warCryRange, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
         }
 
-        ctx.restore();
-
-        // 血条
-        const ratio = this.hp / this.maxHp;
-        const barWidth = r * 2 + 4;
-        ctx.save();
-        ctx.fillStyle = '#000';
-        ctx.fillRect(px - barWidth / 2, py - r - 8, barWidth, 4);
-        ctx.fillStyle = COLOR(0, 255, 0);
-        ctx.fillRect(px - barWidth / 2, py - r - 8, barWidth * ratio, 4);
-        ctx.restore();
-
-        // 标签
-        ctx.save();
-        ctx.fillStyle = '#000';
-        ctx.font = '8px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.typeLabel, px, py);
-        ctx.restore();
-
-        // 召唤师额外信息
-        if (this.type === EnemyType.ET_SUMMONER) {
-            ctx.save();
-            ctx.fillStyle = '#000';
-            ctx.font = '8px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('+' + this.summonCount, px, py + r + 10);
-            ctx.restore();
+        // ---- 减速效果 ----
+        if (this.slowTimer > 0) {
+            ctx.strokeStyle = 'rgba(0,200,255,0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px, py, r + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            // 冰晶粒子
+            for (let i = 0; i < 4; i++) {
+                const a = i * Math.PI / 2 + Date.now() * 0.002;
+                const dist2 = r + 5 + Math.sin(Date.now() * 0.004 + i) * 3;
+                ctx.fillStyle = 'rgba(200,240,255,0.3)';
+                ctx.beginPath();
+                ctx.arc(px + dist2 * Math.cos(a), py + dist2 * Math.sin(a), 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
+
+        // ---- 毒效果 ----
+        if (this.poisonStacks > 0) {
+            ctx.fillStyle = `rgba(50,255,50,${0.1 + Math.sin(Date.now() * 0.005) * 0.05})`;
+            ctx.beginPath();
+            ctx.arc(px, py, r + 6 + Math.sin(Date.now() * 0.003) * 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // ---- 共振标记 ----
+        if (this.resonanceStacks > 0) {
+            ctx.fillStyle = `rgba(180,50,255,${0.3 + Math.sin(Date.now() * 0.004) * 0.15})`;
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('✦'.repeat(Math.min(this.resonanceStacks, 5)), px, py - r - 8);
+        }
+
+        ctx.restore();
+
+        // ---- 血条（升级版） ----
+        const ratio = this.hp / this.maxHp;
+        const barWidth = r * 2 + 6;
+        const barY = py - r - 10;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.beginPath();
+        ctx.roundRect(px - barWidth / 2 - 1, barY - 1, barWidth + 2, 5, 2);
+        ctx.fill();
+
+        const hpColor = ratio > 0.6 ? '#44dd44' : (ratio > 0.3 ? '#ddcc44' : '#dd4444');
+        ctx.fillStyle = hpColor;
+        ctx.shadowColor = hpColor;
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.roundRect(px - barWidth / 2, barY, barWidth * Math.max(0, ratio), 4, 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+
+    // ---- 颜色工具 ----
+    lightenColor(color, amount) {
+        const rgb = this._parseColor(color);
+        return `rgb(${Math.min(255, rgb.r + amount)},${Math.min(255, rgb.g + amount)},${Math.min(255, rgb.b + amount)})`;
+    }
+
+    darkenColor(color, amount) {
+        const rgb = this._parseColor(color);
+        return `rgb(${Math.max(0, rgb.r - amount)},${Math.max(0, rgb.g - amount)},${Math.max(0, rgb.b - amount)})`;
+    }
+
+    _parseColor(color) {
+        const match = color.match(/\d+/g);
+        if (match) {
+            return { r: parseInt(match[0]), g: parseInt(match[1]), b: parseInt(match[2]) };
+        }
+        return { r: 255, g: 255, b: 255 };
     }
 }
 
 // ================================================================
-// Game 类
+// 7. Game 类（完整游戏逻辑 + UI美化）
 // ================================================================
 class Game {
     constructor() {
         this.enemies = [];
         this.turrets = [];
         this.bullets = [];
+        this.particles = []; // 粒子系统
         this.gold = INIT_GOLD;
         this.lives = INIT_LIVES;
         this.wave = 0;
@@ -1472,13 +1935,87 @@ class Game {
         this.autoUpgradeInterval = 0.5;
         this.hoveredWeaponIndex = -1;
         this.showWeaponShop = false;
-        this.gameState = 0; // 0=主菜单, 1=装备选择, 2=游戏中
+        this.gameState = 0;
         this.difficulty = GameDifficulty.DIFF_NORMAL;
         this.selectedWeapons = [-1, -1, -1, -1, -1, -1];
         this.selectedCount = 0;
         this.allWeaponList = [];
         for (let i = 0; i < 26; i++) this.allWeaponList.push(i);
         g_gamePtr = this;
+
+        // 波次通知
+        this.waveAnnouncement = 0;
+        this.notificationText = '';
+    }
+
+    // ---- 粒子特效 ----
+    spawnDeathParticles(x, y, color) {
+        for (let i = 0; i < 15; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 40 + Math.random() * 120;
+            const size = 2 + Math.random() * 4;
+            const life = 0.5 + Math.random() * 0.8;
+            this.particles.push(new Particle(
+                x + (Math.random() - 0.5) * 6,
+                y + (Math.random() - 0.5) * 6,
+                color,
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed - 30,
+                size, life
+            ));
+        }
+    }
+
+    spawnHitParticles(x, y, isCritical) {
+        const color = isCritical ? '#ff4444' : '#ffdd44';
+        const count = isCritical ? 12 : 6;
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 30 + Math.random() * 80;
+            const size = isCritical ? 3 + Math.random() * 4 : 2 + Math.random() * 3;
+            const life = 0.3 + Math.random() * 0.5;
+            this.particles.push(new Particle(x, y, color, Math.cos(angle) * speed, Math.sin(angle) * speed - 20, size, life));
+        }
+    }
+
+    spawnExplosionParticles(x, y, color) {
+        for (let i = 0; i < 25; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 50 + Math.random() * 150;
+            const size = 3 + Math.random() * 5;
+            const life = 0.5 + Math.random() * 0.8;
+            this.particles.push(new Particle(x, y, color, Math.cos(angle) * speed, Math.sin(angle) * speed - 40, size, life));
+        }
+    }
+
+    spawnTeleportParticles(x, y) {
+        const colors = ['#dd88ff', '#aa44dd', '#8844aa', '#ff88dd'];
+        for (let i = 0; i < 30; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * 60;
+            const speed = 20 + Math.random() * 60;
+            const size = 2 + Math.random() * 4;
+            const life = 0.6 + Math.random() * 0.8;
+            this.particles.push(new Particle(
+                x + dist * Math.cos(angle),
+                y + dist * Math.sin(angle),
+                colors[Math.floor(Math.random() * colors.length)],
+                Math.cos(angle + Math.random() * 0.5) * speed,
+                Math.sin(angle + Math.random() * 0.5) * speed - 30,
+                size, life
+            ));
+        }
+    }
+
+    spawnLightningParticles(x1, y1, x2, y2) {
+        for (let i = 0; i < 10; i++) {
+            const t = i / 10;
+            const x = x1 + (x2 - x1) * t + (Math.random() - 0.5) * 20;
+            const y = y1 + (y2 - y1) * t + (Math.random() - 0.5) * 20;
+            const life = 0.2 + Math.random() * 0.3;
+            const size = 2 + Math.random() * 3;
+            this.particles.push(new Particle(x, y, '#ffdd44', (Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, size, life));
+        }
     }
 
     // ---- 游戏状态管理 ----
@@ -1490,6 +2027,7 @@ class Game {
         this.enemies = [];
         this.turrets = [];
         this.bullets = [];
+        this.particles = [];
         this.ownedWeapons = [];
         this.gameOver = false;
         this.selectedTurretPtr = null;
@@ -1505,12 +2043,15 @@ class Game {
         }
         this.gameState = 2;
         this.startWave();
+        this.waveAnnouncement = 1.8;
+        this.notificationText = `⚔️ 第 1 波`;
     }
 
     restartGame() {
         this.enemies = [];
         this.turrets = [];
         this.bullets = [];
+        this.particles = [];
         this.ownedWeapons = [];
         this.gameState = 0;
         this.gameOver = false;
@@ -1522,6 +2063,7 @@ class Game {
         this.selectedTurretPtr = null;
         this.selectedWeapons = [-1, -1, -1, -1, -1, -1];
         this.selectedCount = 0;
+        this.waveAnnouncement = 0;
     }
 
     // ---- 武器系统 ----
@@ -1853,6 +2395,9 @@ class Game {
         this.enemiesThisWave = baseCount + ((this.wave % 5 === 0) ? 1 : 0);
         this.enemiesSpawned = 0;
         this.spawnTimer = 0;
+        // 波次通知
+        this.waveAnnouncement = 2.0;
+        this.notificationText = `⚔️ 第 ${this.wave} 波`;
     }
 
     getNextEnemyType(wave, spawned, total) {
@@ -1929,6 +2474,11 @@ class Game {
 
     update(dt) {
         if (this.gameOver || this.gameState !== 2) return;
+
+        // 更新波次通知
+        if (this.waveAnnouncement > 0) {
+            this.waveAnnouncement -= dt;
+        }
 
         // 风灵塔 buff
         for (const t of this.turrets) {
@@ -2007,6 +2557,7 @@ class Game {
                 e.hp -= poisonDmg;
                 if (e.hp <= 0) {
                     e.alive = false;
+                    this.spawnDeathParticles(e.pos.x, e.pos.y, '#44ff44');
                     for (const other of this.enemies) {
                         if (!other.alive || other === e) continue;
                         if (distance(e.pos.x, e.pos.y, other.pos.x, other.pos.y) < 80) {
@@ -2053,9 +2604,15 @@ class Game {
             }
         }
 
+        // 更新粒子
+        for (const p of this.particles) {
+            p.update(dt);
+        }
+
         // 清理
         this.enemies = this.enemies.filter(e => e.alive);
         this.bullets = this.bullets.filter(b => b.active);
+        this.particles = this.particles.filter(p => p.alive);
         for (const t of this.turrets) {
             if (t.isDead && this.selectedTurretPtr === t) this.selectedTurretPtr = null;
         }
@@ -2194,98 +2751,418 @@ class Game {
         this.hoveredWeaponIndex = -1;
     }
 
-    // ---- 绘图 ----
+    // ============================================================
+    // 绘图（UI美化版）
+    // ============================================================
     draw(ctx) {
         ctx.clearRect(0, 0, WIN_WIDTH, WIN_HEIGHT);
-        ctx.fillStyle = '#f5f5f5';
+        ctx.fillStyle = '#1a1a2e';
         ctx.fillRect(0, 0, WIN_WIDTH, WIN_HEIGHT);
 
-        // ---- 主菜单 ----
         if (this.gameState === 0) {
             this.drawMainMenu(ctx);
             return;
         }
 
-        // ---- 装备选择 ----
         if (this.gameState === 1) {
             this.drawEquipmentSelect(ctx);
             return;
         }
 
-        // ---- 游戏结束 ----
         if (this.gameOver) {
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(0, 0, WIN_WIDTH, WIN_HEIGHT);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 48px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('游戏结束', WIN_WIDTH / 2, WIN_HEIGHT / 2 - 20);
-            ctx.font = '20px sans-serif';
-            ctx.fillText('按 R 键重新开始', WIN_WIDTH / 2, WIN_HEIGHT / 2 + 40);
+            this.drawGameOver(ctx);
             return;
         }
 
-        // ---- 游戏主界面 ----
-        this.drawGame(ctx);
+        // ---- 绘制游戏背景 ----
+        this.drawGameBackground(ctx);
+
+        // ---- 绘制游戏元素 ----
+        for (const t of this.turrets) t.draw(ctx);
+        for (const e of this.enemies) e.draw(ctx);
+        for (const b of this.bullets) b.draw(ctx);
+        for (const p of this.particles) p.draw(ctx);
+
+        // ---- 绘制UI ----
+        this.drawGameUI(ctx);
+
+        // ---- 波次通知 ----
+        if (this.waveAnnouncement > 0) {
+            this.drawWaveAnnouncement(ctx);
+        }
+    }
+
+    drawGameBackground(ctx) {
+        // 路径
+        ctx.save();
+        ctx.shadowColor = 'rgba(100,200,255,0.1)';
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = 'rgba(100,200,255,0.3)';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        for (let i = 0; i < g_path.length; i++) {
+            if (i === 0) ctx.moveTo(g_path[i].x, g_path[i].y);
+            else ctx.lineTo(g_path[i].x, g_path[i].y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 路径发光点
+        for (const p of g_path) {
+            ctx.fillStyle = 'rgba(100,200,255,0.15)';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // 起点/终点标记
+        ctx.save();
+        ctx.shadowColor = '#44ff44';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#44ff44';
+        ctx.beginPath();
+        ctx.arc(g_path[0].x, g_path[0].y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowColor = '#ff4444';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath();
+        ctx.arc(g_path[g_path.length - 1].x, g_path[g_path.length - 1].y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+
+    drawGameUI(ctx) {
+        // ---- 顶部信息面板（毛玻璃效果） ----
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.beginPath();
+        ctx.roundRect(8, 8, 340, 72, 12);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(8, 8, 340, 72, 12);
+        ctx.stroke();
+
+        // 信息文字
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 15px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText(`💰 ${this.gold}`, 22, 14);
+        ctx.fillStyle = '#ff6b6b';
+        ctx.fillText(`❤️ ${this.lives}`, 120, 14);
+        ctx.fillStyle = '#74b9ff';
+        ctx.fillText(`🌊 ${this.wave}`, 200, 14);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = '13px sans-serif';
+        ctx.fillText(`👾 ${this.enemies.length}  🏗 ${this.turrets.length}`, 22, 38);
+
+        if (this.selectedTurretPtr && !this.selectedTurretPtr.isDead) {
+            const cost = this.selectedTurretPtr.getUpgradeCost();
+            ctx.fillStyle = '#ffd700';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(`⚡ Lv.${this.selectedTurretPtr.level} 升级: ${cost}G`, 22, 56);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fillText('[U升级] [D删除]', 180, 56);
+        } else {
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('点击炮塔选中 | U升级 | D删除', 22, 56);
+        }
+
+        ctx.shadowBlur = 0;
+        ctx.restore();
+
+        // ---- 右侧信息（自动升级等） ----
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.roundRect(WIN_WIDTH - 230, 8, 170, 28, 8);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`自动升级 Lv.${this.autoUpgradeLevel}  [J↓ K↑]`, WIN_WIDTH - 220, 12);
+        ctx.restore();
+
+        // ---- 底部炮塔按钮（美化版） ----
+        const btnData = [
+            ['普通', 50, TurretType.TT_NORMAL, '#4488cc'],
+            ['狙击', 80, TurretType.TT_SNIPER, '#cc4444'],
+            ['速射', 40, TurretType.TT_RAPID, '#44cc66'],
+            ['肉盾', 60, TurretType.TT_TANK, '#ccaa44'],
+            ['回血', 70, TurretType.TT_HEAL, '#ee6699'],
+            ['地刺', 30, TurretType.TT_SPIKE, '#8B6914'],
+            ['寒冰', 500, TurretType.TT_ICE, '#44aadd'],
+            ['热力', 1000, TurretType.TT_HEAT, '#ff6633'],
+            ['引力', 1000, TurretType.TT_GRAVITY, '#8844cc'],
+            ['风灵', 1000, TurretType.TT_WIND, '#44cccc'],
+            ['传送', 500, TurretType.TT_TELEPORT, '#aa44dd'],
+            ['共振', 500, TurretType.TT_RESONANCE, '#8844dd'],
+            ['灵魂', 500, TurretType.TT_SOUL_LINK, '#44ccaa'],
+            ['剧毒', 500, TurretType.TT_TOXIC_CATALYST, '#66cc44'],
+            ['静电', 500, TurretType.TT_STATIC_ATTACH, '#ddcc44']
+        ];
+
+        const bw = 55,
+            bh = 26,
+            gp = 2;
+        const sx = 10,
+            sy = WIN_HEIGHT - bh - 10;
+
+        for (let i = 0; i < btnData.length; i++) {
+            const x = sx + i * (bw + gp);
+            const isSel = this.selectedTurret === btnData[i][2];
+            ctx.save();
+
+            if (isSel) {
+                ctx.shadowColor = btnData[i][3];
+                ctx.shadowBlur = 15;
+            }
+
+            ctx.fillStyle = isSel ? btnData[i][3] : 'rgba(255,255,255,0.15)';
+            ctx.beginPath();
+            ctx.roundRect(x, sy, bw, bh, 5);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            if (isSel) {
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.roundRect(x, sy, bw, bh, 5);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = isSel ? '#fff' : 'rgba(255,255,255,0.6)';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(btnData[i][0], x + bw / 2, sy + bh / 2);
+            ctx.restore();
+        }
+
+        // ---- 右上角商店按钮 ----
+        const btnX = WIN_WIDTH - 120,
+            btnY = 10,
+            btnW = 110,
+            btnH = 28;
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = this.showWeaponShop ? 'rgba(100,200,255,0.8)' : 'rgba(255,255,255,0.15)';
+        ctx.beginPath();
+        ctx.roundRect(btnX, btnY, btnW, btnH, 6);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = this.showWeaponShop ? '#1a1a2e' : 'rgba(255,255,255,0.7)';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.showWeaponShop ? '▼ 收起商店' : '📦 装备商店', btnX + btnW / 2, btnY + btnH / 2);
+        ctx.restore();
+
+        // ---- 商店列表 ----
+        if (this.showWeaponShop) {
+            const listX = WIN_WIDTH - 195,
+                listY = btnY + btnH + 4;
+            const listW = 185,
+                listH = 180;
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 25;
+            ctx.fillStyle = 'rgba(20,20,40,0.92)';
+            ctx.beginPath();
+            ctx.roundRect(listX, listY, listW, listH, 8);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(listX, listY, listW, listH, 8);
+            ctx.stroke();
+
+            const itemH = 26;
+            for (let i = 0; i < 6; i++) {
+                if (this.selectedWeapons[i] < 0 || this.selectedWeapons[i] >= 26) continue;
+                const wt = this.selectedWeapons[i];
+                const y = listY + 4 + i * itemH;
+                const owned = this.hasWeapon(wt);
+                const canBuy = this.canBuyWeapon(wt);
+
+                ctx.fillStyle = owned ? 'rgba(50,200,50,0.3)' : (canBuy ? 'rgba(255,255,255,0.08)' : 'rgba(100,100,100,0.2)');
+                ctx.beginPath();
+                ctx.roundRect(listX + 4, y, listW - 8, itemH - 2, 4);
+                ctx.fill();
+
+                ctx.fillStyle = owned ? '#66dd66' : (canBuy ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)');
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                const name = this.getWeaponName(wt);
+                const price = this.getWeaponPrice(wt);
+                const text = owned ? `✅ ${name}` : `${name}  ${price}G`;
+                ctx.fillText(text, listX + 10, y + itemH / 2);
+            }
+            ctx.restore();
+        }
+    }
+
+    drawWaveAnnouncement(ctx) {
+        const progress = 1 - (this.waveAnnouncement / 2.0);
+        const y = 80 - progress * 50;
+        const alpha = progress < 0.7 ? 1 : (1 - progress) / 0.3;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, alpha);
+
+        // 背景
+        ctx.shadowColor = 'rgba(255,215,0,0.4)';
+        ctx.shadowBlur = 40;
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+        ctx.beginPath();
+        ctx.roundRect(WIN_WIDTH / 2 - 160, y - 30, 320, 60, 16);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 边框
+        const grad = ctx.createLinearGradient(WIN_WIDTH / 2 - 160, y, WIN_WIDTH / 2 + 160, y);
+        grad.addColorStop(0, 'rgba(255,215,0,0)');
+        grad.addColorStop(0.3, 'rgba(255,215,0,0.5)');
+        grad.addColorStop(0.7, 'rgba(255,215,0,0.5)');
+        grad.addColorStop(1, 'rgba(255,215,0,0)');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(WIN_WIDTH / 2 - 160, y - 30, 320, 60, 16);
+        ctx.stroke();
+
+        // 文字
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 32px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(255,215,0,0.3)';
+        ctx.shadowBlur = 20;
+        ctx.fillText(this.notificationText, WIN_WIDTH / 2, y + 2);
+
+        ctx.shadowBlur = 0;
+        ctx.restore();
     }
 
     drawMainMenu(ctx) {
-        const diffNames = ['简单', '普通', '困难', '地狱'];
-        const diffColors = [COLOR(0, 200, 0), COLOR(0, 0, 200), COLOR(200, 150, 0), COLOR(200, 0, 0)];
-
-        ctx.fillStyle = '#2c3e50';
+        // 背景
+        const grad = ctx.createLinearGradient(0, 0, 0, WIN_HEIGHT);
+        grad.addColorStop(0, '#16213e');
+        grad.addColorStop(0.5, '#1a1a3e');
+        grad.addColorStop(1, '#0f0f23');
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, WIN_WIDTH, WIN_HEIGHT);
 
+        // 装饰粒子
+        for (let i = 0; i < 30; i++) {
+            const x = (i * 137 + 50) % WIN_WIDTH;
+            const y = (i * 251 + 30) % WIN_HEIGHT;
+            const size = 1 + (i % 3);
+            ctx.fillStyle = `rgba(100,200,255,${0.05 + (i % 5) * 0.02})`;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.save();
         // 标题
-        ctx.fillStyle = '#ecf0f1';
-        ctx.font = 'bold 52px sans-serif';
+        ctx.shadowColor = 'rgba(255,215,0,0.3)';
+        ctx.shadowBlur = 40;
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 56px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('🏰 塔防游戏', WIN_WIDTH / 2, 50);
+        ctx.fillText('🏰 塔防游戏', WIN_WIDTH / 2, 40);
+        ctx.shadowBlur = 0;
 
-        // 难度按钮
+        // 副标题
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '16px sans-serif';
+        ctx.fillText('视觉升级版 · 15种炮塔 · 26种装备', WIN_WIDTH / 2, 100);
+
+        // 难度选择
+        const diffNames = ['🟢 简单', '🔵 普通', '🟡 困难', '🔴 地狱'];
+        const diffColors = ['rgba(50,200,50,0.3)', 'rgba(50,150,255,0.3)', 'rgba(255,200,50,0.3)', 'rgba(255,50,50,0.3)'];
+        const diffBorder = ['#44dd44', '#4488ff', '#ffcc44', '#ff4444'];
+
         for (let i = 0; i < 4; i++) {
             const x = 180 + i * 110,
                 y = 160,
                 w = 100,
                 h = 40;
-            const bg = this.difficulty === i ? diffColors[i] : '#7f8c8d';
-            ctx.fillStyle = bg;
-            ctx.fillRect(x, y, w, h);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, w, h);
-            ctx.fillStyle = '#fff';
-            ctx.font = '18px sans-serif';
+            const isSel = this.difficulty === i;
+            ctx.save();
+            if (isSel) {
+                ctx.shadowColor = diffBorder[i];
+                ctx.shadowBlur = 20;
+            }
+            ctx.fillStyle = isSel ? diffColors[i] : 'rgba(255,255,255,0.08)';
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 8);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = isSel ? diffBorder[i] : 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = isSel ? 2 : 1;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 8);
+            ctx.stroke();
+            ctx.fillStyle = isSel ? '#fff' : 'rgba(255,255,255,0.6)';
+            ctx.font = '16px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(diffNames[i], x + w / 2, y + h / 2);
+            ctx.restore();
         }
 
         // 开始按钮
         const bx = WIN_WIDTH / 2 - 60,
             by = 240,
             bw = 120,
-            bh = 45;
-        ctx.fillStyle = '#3498db';
-        ctx.fillRect(bx, by, bw, bh);
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(bx, by, bw, bh);
+            bh = 48;
+        ctx.save();
+        ctx.shadowColor = 'rgba(100,200,255,0.3)';
+        ctx.shadowBlur = 30;
+        const btnGrad = ctx.createLinearGradient(bx, by, bx, by + bh);
+        btnGrad.addColorStop(0, '#4a9eff');
+        btnGrad.addColorStop(1, '#2a6eff');
+        ctx.fillStyle = btnGrad;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 10);
+        ctx.fill();
+        ctx.shadowBlur = 0;
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 22px sans-serif';
+        ctx.font = 'bold 20px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('开始游戏', WIN_WIDTH / 2, by + bh / 2);
+        ctx.restore();
 
         // 操作说明
-        ctx.fillStyle = '#bdc3c7';
-        ctx.font = '15px sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.font = '13px sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         const tips = [
-            '操作说明：',
+            '🎯 操作说明：',
             '1. 点击底部炮塔按钮选择炮塔类型',
             '2. 点击地图放置炮塔',
             '3. 点击已有炮塔选中，按 U 升级，按 D 删除',
@@ -2293,30 +3170,39 @@ class Game {
             '5. 新炮塔：共振 | 灵魂 | 剧毒 | 静电'
         ];
         for (let i = 0; i < tips.length; i++) {
-            ctx.fillText(tips[i], 50, 330 + i * 22);
+            ctx.fillText(tips[i], 50, 320 + i * 22);
         }
+        ctx.restore();
     }
 
     drawEquipmentSelect(ctx) {
-        ctx.fillStyle = '#2c3e50';
+        const grad = ctx.createLinearGradient(0, 0, 0, WIN_HEIGHT);
+        grad.addColorStop(0, '#16213e');
+        grad.addColorStop(1, '#0f0f23');
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, WIN_WIDTH, WIN_HEIGHT);
 
-        ctx.fillStyle = '#ecf0f1';
+        ctx.save();
+        ctx.fillStyle = '#ffd700';
         ctx.font = 'bold 28px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('请选择6件初始装备', WIN_WIDTH / 2, 20);
+        ctx.shadowColor = 'rgba(255,215,0,0.2)';
+        ctx.shadowBlur = 20;
+        ctx.fillText('🎒 选择6件初始装备', WIN_WIDTH / 2, 20);
+        ctx.shadowBlur = 0;
 
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
         ctx.font = '18px sans-serif';
-        ctx.fillText(`已选: ${this.selectedCount}/6`, WIN_WIDTH / 2, 60);
+        ctx.fillText(`已选: ${this.selectedCount} / 6`, WIN_WIDTH / 2, 65);
 
         const cols = 4,
             rows = 7,
             itemW = 180,
-            itemH = 30,
-            gap = 4;
+            itemH = 32,
+            gap = 6;
         const startX = 20,
-            startY = 90;
+            startY = 100;
 
         for (let i = 0; i < 26; i++) {
             const col = i % cols,
@@ -2328,191 +3214,87 @@ class Game {
             for (let j = 0; j < 6; j++) {
                 if (this.selectedWeapons[j] === i) { isSelected = true; break; }
             }
-            const bg = isSelected ? '#27ae60' : '#7f8c8d';
-            ctx.fillStyle = bg;
-            ctx.fillRect(x, y, itemW, itemH);
-            ctx.strokeStyle = '#ecf0f1';
+
+            ctx.save();
+            if (isSelected) {
+                ctx.shadowColor = 'rgba(50,200,50,0.3)';
+                ctx.shadowBlur = 15;
+            }
+            ctx.fillStyle = isSelected ? 'rgba(50,200,50,0.25)' : 'rgba(255,255,255,0.06)';
+            ctx.beginPath();
+            ctx.roundRect(x, y, itemW, itemH, 6);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = isSelected ? 'rgba(50,200,50,0.4)' : 'rgba(255,255,255,0.08)';
             ctx.lineWidth = 1;
-            ctx.strokeRect(x, y, itemW, itemH);
-            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.roundRect(x, y, itemW, itemH, 6);
+            ctx.stroke();
+
+            ctx.fillStyle = isSelected ? '#66dd66' : 'rgba(255,255,255,0.7)';
             ctx.font = '14px sans-serif';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             const name = this.getWeaponName(wt);
-            const text = isSelected ? `✓ ${name}` : name;
-            ctx.fillText(text, x + 6, y + itemH / 2);
+            const text = isSelected ? `✅ ${name}` : name;
+            ctx.fillText(text, x + 10, y + itemH / 2);
+            ctx.restore();
         }
 
         // 确认按钮
-        const bx = WIN_WIDTH / 2 - 50,
+        const bx = WIN_WIDTH / 2 - 60,
             by = 520,
-            bw = 100,
-            bh = 35;
+            bw = 120,
+            bh = 40;
         const canConfirm = this.selectedCount === 6;
-        ctx.fillStyle = canConfirm ? '#27ae60' : '#7f8c8d';
-        ctx.fillRect(bx, by, bw, bh);
-        ctx.strokeStyle = '#ecf0f1';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(bx, by, bw, bh);
-        ctx.fillStyle = '#fff';
+        ctx.save();
+        ctx.shadowColor = canConfirm ? 'rgba(50,200,50,0.3)' : 'rgba(255,0,0,0)';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = canConfirm ? 'rgba(50,200,50,0.3)' : 'rgba(100,100,100,0.2)';
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 8);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = canConfirm ? 'rgba(50,200,50,0.4)' : 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 8);
+        ctx.stroke();
+        ctx.fillStyle = canConfirm ? '#66dd66' : 'rgba(255,255,255,0.3)';
         ctx.font = 'bold 18px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(canConfirm ? '确认' : '需选6件', WIN_WIDTH / 2, by + bh / 2);
+        ctx.fillText(canConfirm ? '✅ 确认' : '需选6件', WIN_WIDTH / 2, by + bh / 2);
+        ctx.restore();
     }
 
-    drawGame(ctx) {
-        // ---- 路径 ----
+    drawGameOver(ctx) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, WIN_WIDTH, WIN_HEIGHT);
+
         ctx.save();
-        ctx.strokeStyle = '#888';
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        for (let i = 0; i < g_path.length; i++) {
-            if (i === 0) ctx.moveTo(g_path[i].x, g_path[i].y);
-            else ctx.lineTo(g_path[i].x, g_path[i].y);
-        }
-        ctx.stroke();
-        ctx.restore();
-
-        // 起点终点
-        ctx.save();
-        ctx.fillStyle = COLOR(0, 255, 0);
-        ctx.beginPath();
-        ctx.arc(g_path[0].x, g_path[0].y, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = COLOR(255, 0, 0);
-        ctx.beginPath();
-        ctx.arc(g_path[g_path.length - 1].x, g_path[g_path.length - 1].y, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // ---- 绘制炮塔 ----
-        for (const t of this.turrets) t.draw(ctx);
-
-        // ---- 绘制敌人 ----
-        for (const e of this.enemies) e.draw(ctx);
-
-        // ---- 绘制子弹 ----
-        for (const b of this.bullets) b.draw(ctx);
-
-        // ---- UI 信息 ----
-        ctx.save();
-        ctx.fillStyle = '#000';
-        ctx.font = '14px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        const info = `金币: ${this.gold}  生命: ${this.lives}  波次: ${this.wave}  敌人: ${this.enemies.length}  炮塔: ${this.turrets.length}`;
-        ctx.fillText(info, 10, 10);
-
-        if (this.selectedTurretPtr && !this.selectedTurretPtr.isDead) {
-            const cost = this.selectedTurretPtr.getUpgradeCost();
-            ctx.fillText(`选中炮塔 Lv.${this.selectedTurretPtr.level}  升级费用: ${cost} [U升级] [D删除]`, 10, 30);
-        } else {
-            ctx.fillText('点击炮塔选中，U升级，D删除', 10, 30);
-        }
-        ctx.fillText(`自动升级等级: ${this.autoUpgradeLevel} [J降低 | K提高]`, 10, 50);
-        ctx.fillText('I键一键升级 | R键重新开始', 10, 70);
-        ctx.restore();
-
-        // ---- 底部炮塔按钮 ----
-        const btnData = [
-            ['普通', 50, TurretType.TT_NORMAL],
-            ['狙击', 80, TurretType.TT_SNIPER],
-            ['速射', 40, TurretType.TT_RAPID],
-            ['肉盾', 60, TurretType.TT_TANK],
-            ['回血', 70, TurretType.TT_HEAL],
-            ['地刺', 30, TurretType.TT_SPIKE],
-            ['寒冰', 500, TurretType.TT_ICE],
-            ['热力', 1000, TurretType.TT_HEAT],
-            ['引力', 1000, TurretType.TT_GRAVITY],
-            ['风灵', 1000, TurretType.TT_WIND],
-            ['传送', 500, TurretType.TT_TELEPORT],
-            ['共振', 500, TurretType.TT_RESONANCE],
-            ['灵魂', 500, TurretType.TT_SOUL_LINK],
-            ['剧毒', 500, TurretType.TT_TOXIC_CATALYST],
-            ['静电', 500, TurretType.TT_STATIC_ATTACH]
-        ];
-
-        const bw = 55,
-            bh = 24,
-            gp = 2;
-        const sx = 10,
-            sy = WIN_HEIGHT - bh - 10;
-
-        for (let i = 0; i < btnData.length; i++) {
-            const x = sx + i * (bw + gp);
-            const isSel = this.selectedTurret === btnData[i][2];
-            ctx.save();
-            ctx.fillStyle = isSel ? COLOR(255, 200, 100) : '#ddd';
-            ctx.fillRect(x, sy, bw, bh);
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x, sy, bw, bh);
-            ctx.fillStyle = '#000';
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(btnData[i][0], x + bw / 2, sy + bh / 2);
-            ctx.restore();
-        }
-
-        // ---- 右上角装备商店 ----
-        const btnX = WIN_WIDTH - 120,
-            btnY = 10,
-            btnW = 110,
-            btnH = 26;
-        ctx.save();
-        ctx.fillStyle = this.showWeaponShop ? COLOR(100, 200, 255) : '#ddd';
-        ctx.fillRect(btnX, btnY, btnW, btnH);
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(btnX, btnY, btnW, btnH);
-        ctx.fillStyle = '#000';
-        ctx.font = '12px sans-serif';
+        ctx.shadowColor = 'rgba(255,0,0,0.3)';
+        ctx.shadowBlur = 40;
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 56px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(this.showWeaponShop ? '▼ 收起商店' : '📦 装备商店', btnX + btnW / 2, btnY + btnH / 2);
+        ctx.fillText('💀 游戏结束', WIN_WIDTH / 2, WIN_HEIGHT / 2 - 30);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '22px sans-serif';
+        ctx.fillText(`存活至第 ${this.wave} 波`, WIN_WIDTH / 2, WIN_HEIGHT / 2 + 40);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '16px sans-serif';
+        ctx.fillText('按 R 键重新开始', WIN_WIDTH / 2, WIN_HEIGHT / 2 + 85);
         ctx.restore();
-
-        // ---- 商店列表 ----
-        if (this.showWeaponShop) {
-            const listX = WIN_WIDTH - 195,
-                listY = btnY + btnH + 2;
-            const listW = 185,
-                listH = 180;
-            ctx.save();
-            ctx.fillStyle = 'rgba(255,255,255,0.95)';
-            ctx.fillRect(listX, listY, listW, listH);
-            ctx.strokeStyle = '#888';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(listX, listY, listW, listH);
-
-            const itemH = 22;
-            for (let i = 0; i < 6; i++) {
-                if (this.selectedWeapons[i] < 0 || this.selectedWeapons[i] >= 26) continue;
-                const wt = this.selectedWeapons[i];
-                const y = listY + 2 + i * itemH;
-                const owned = this.hasWeapon(wt);
-                const canBuy = this.canBuyWeapon(wt);
-                const bg = owned ? COLOR(80, 200, 80) : (canBuy ? '#ddd' : '#bbb');
-                ctx.fillStyle = bg;
-                ctx.fillRect(listX + 2, y, listW - 4, itemH);
-                ctx.fillStyle = '#000';
-                ctx.font = '11px sans-serif';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-                const name = this.getWeaponName(wt);
-                const price = this.getWeaponPrice(wt);
-                const text = owned ? `✓ ${name}` : `${name} ${price}G`;
-                ctx.fillText(text, listX + 8, y + itemH / 2);
-            }
-            ctx.restore();
-        }
     }
 }
 
 // ================================================================
-// 初始化 & 主循环
+// 8. 初始化 & 主循环
 // ================================================================
 
 const game = new Game();
@@ -2523,11 +3305,9 @@ function init() {
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
 
-    // 设置画布尺寸
     canvas.width = WIN_WIDTH;
     canvas.height = WIN_HEIGHT;
 
-    // 事件监听
     canvas.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
@@ -2543,17 +3323,15 @@ function init() {
         const scaleY = canvas.height / rect.height;
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
-
         handleClick(x, y);
     });
 
-    // 键盘事件
     document.addEventListener('keydown', (e) => {
         handleKey(e.key);
     });
 
-    // 开始游戏循环
     let lastTime = 0;
+
     function gameLoop(timestamp) {
         const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
         lastTime = timestamp;
@@ -2569,9 +3347,7 @@ function init() {
 
 // ---- 事件处理 ----
 function handleClick(x, y) {
-    // 主菜单
     if (game.gameState === 0) {
-        // 难度选择
         for (let i = 0; i < 4; i++) {
             const dx = 180 + i * 110,
                 dy = 160,
@@ -2582,22 +3358,20 @@ function handleClick(x, y) {
                 return;
             }
         }
-        // 开始按钮
         if (x >= WIN_WIDTH / 2 - 60 && x <= WIN_WIDTH / 2 + 60 &&
-            y >= 240 && y <= 285) {
+            y >= 240 && y <= 288) {
             game.startGame();
         }
         return;
     }
 
-    // 装备选择
     if (game.gameState === 1) {
         const cols = 4,
             itemW = 180,
-            itemH = 30,
-            gap = 4;
+            itemH = 32,
+            gap = 6;
         const startX = 20,
-            startY = 90;
+            startY = 100;
         for (let i = 0; i < 26; i++) {
             const col = i % cols,
                 row = Math.floor(i / cols);
@@ -2625,16 +3399,14 @@ function handleClick(x, y) {
                 return;
             }
         }
-        // 确认按钮
         if (game.selectedCount === 6 &&
-            x >= WIN_WIDTH / 2 - 50 && x <= WIN_WIDTH / 2 + 50 &&
-            y >= 520 && y <= 555) {
+            x >= WIN_WIDTH / 2 - 60 && x <= WIN_WIDTH / 2 + 60 &&
+            y >= 520 && y <= 560) {
             game.confirmEquipment();
         }
         return;
     }
 
-    // 游戏中
     if (game.gameState === 2) {
         // 底部炮塔按钮
         const btnData = [
@@ -2655,7 +3427,7 @@ function handleClick(x, y) {
             ['静电', 500, TurretType.TT_STATIC_ATTACH]
         ];
         const bw = 55,
-            bh = 24,
+            bh = 26,
             gp = 2;
         const sx = 10,
             sy = WIN_HEIGHT - bh - 10;
@@ -2671,7 +3443,7 @@ function handleClick(x, y) {
         const btnX = WIN_WIDTH - 120,
             btnY = 10,
             btnW = 110,
-            btnH = 26;
+            btnH = 28;
         if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
             game.showWeaponShop = !game.showWeaponShop;
             return;
@@ -2680,12 +3452,12 @@ function handleClick(x, y) {
         // 商店点击购买
         if (game.showWeaponShop) {
             const listX = WIN_WIDTH - 195,
-                listY = btnY + btnH + 2;
+                listY = btnY + btnH + 4;
             const listW = 185,
                 listH = 180;
             if (x >= listX && x <= listX + listW && y >= listY && y <= listY + listH) {
-                const itemH = 22;
-                const idx = Math.floor((y - listY - 2) / itemH);
+                const itemH = 26;
+                const idx = Math.floor((y - listY - 4) / itemH);
                 if (idx >= 0 && idx < 6 && game.selectedWeapons[idx] >= 0 && game.selectedWeapons[idx] < 26) {
                     game.buyWeapon(game.selectedWeapons[idx]);
                 }
@@ -2693,7 +3465,6 @@ function handleClick(x, y) {
             }
         }
 
-        // 选择炮塔或放置
         if (game.selectTurretAt(x, y)) return;
         game.placeTurret(x, y);
     }
@@ -2726,5 +3497,4 @@ function handleKey(key) {
     }
 }
 
-// ---- 启动 ----
 window.onload = init;
