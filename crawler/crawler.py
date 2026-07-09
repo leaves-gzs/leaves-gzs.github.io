@@ -1,4 +1,4 @@
-import requests
+import cloudscraper
 import json
 import os
 import time
@@ -13,15 +13,24 @@ if not CLIENT_ID or not UID:
 
 print(f"🔑 使用 Cookie: __client_id={CLIENT_ID[:10]}..., _uid={UID}")
 
-cookies = {
-    '__client_id': CLIENT_ID,
-    '_uid': UID
-}
+# 构造 Cookie 字符串（用于请求头）
+cookie_str = f"__client_id={CLIENT_ID}; _uid={UID}"
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Referer': 'https://www.luogu.com.cn/'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Referer': 'https://www.luogu.com.cn/',
+    'Origin': 'https://www.luogu.com.cn',
+    'Connection': 'keep-alive',
+    'Cookie': cookie_str,
 }
+
+# 创建 cloudscraper 会话（自动处理 Cloudflare 人机验证）
+scraper = cloudscraper.create_scraper()
+# 设置默认 headers
+scraper.headers.update(headers)
 
 # ========== 读取用户列表 ==========
 try:
@@ -44,35 +53,32 @@ for user in users:
         continue
 
     print(f"📡 正在获取 {name} (UID: {uid}) ...")
-
-    # 构造请求 URL（注意：洛谷的 record/list 接口可能需要携带参数）
     url = f"https://www.luogu.com.cn/record/list?user={uid}&page=1"
     print(f"  请求 URL: {url}")
 
     try:
-        resp = requests.get(url, cookies=cookies, headers=headers, timeout=15)
+        # 使用 cloudscraper 发送请求
+        resp = scraper.get(url, timeout=30)
         print(f"  状态码: {resp.status_code}")
-
-        # 打印返回内容的前 200 个字符，方便判断是否是 HTML 登录页
-        content_preview = resp.text[:200]
-        print(f"  返回内容预览: {content_preview}...")
 
         if resp.status_code != 200:
             print(f"❌ 请求失败，状态码 {resp.status_code}")
+            # 打印前200字符帮助判断
+            print(f"  返回内容预览: {resp.text[:200]}...")
             continue
 
         # 尝试解析 JSON
         try:
             data = resp.json()
         except json.JSONDecodeError:
-            print(f"❌ 返回内容不是 JSON，可能是被反爬或需要登录。")
+            print(f"❌ 返回内容不是 JSON，可能是 HTML 页面。")
+            print(f"  返回内容预览: {resp.text[:200]}...")
             continue
 
         print(f"  JSON 数据中的 code: {data.get('code')}, message: {data.get('message', '无')}")
 
         if data.get('code') != 200:
             print(f"❌ API 返回错误码：{data.get('code')}，信息：{data.get('message', '未知')}")
-            # 有时返回的错误信息是 "未登录"，说明 Cookie 过期
             continue
 
         records = data.get('data', {}).get('records', [])
@@ -80,11 +86,9 @@ for user in users:
 
         if not records:
             print(f"⚠️ 未找到 {name} 的提交记录，可能该用户没有公开记录或 UID 错误。")
-            # 仍然继续，保留空数据
 
         ac_set = set()
         for rec in records:
-            # 检查多种表示 AC 的方式
             status = rec.get('status')
             status_text = rec.get('statusText', '')
             if status == 12 or str(status) == '12' or status_text == 'Accepted':
@@ -93,7 +97,6 @@ for user in users:
                 if pid:
                     ac_set.add(pid)
                 else:
-                    # 如果 problem 里没有 pid，尝试直接从 record 里拿
                     pid_direct = rec.get('pid')
                     if pid_direct:
                         ac_set.add(pid_direct)
@@ -114,7 +117,7 @@ for user in users:
             diff_map[key] += 1
 
         # ---- 模拟热力图 ----
-        base = max(1, total_ac // 7)
+        base = max(1, total_ac // 7) if total_ac > 0 else 1
         heatmap = [
             {'day': '周一', 'count': base + 1},
             {'day': '周二', 'count': base + 0},
@@ -142,12 +145,11 @@ for user in users:
         import traceback
         traceback.print_exc()
 
-    time.sleep(0.5)  # 礼貌间隔
+    time.sleep(1)  # 适当延时，降低风险
 
 # ========== 排序并保存 ==========
 all_data.sort(key=lambda x: x['totalAC'], reverse=True)
 
-# 确保目标目录存在
 output_dir = '../oi-dashboard/assets'
 os.makedirs(output_dir, exist_ok=True)
 output_path = os.path.join(output_dir, 'app-data.js')
