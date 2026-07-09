@@ -754,11 +754,8 @@
 
             // ----- 服务器地址 (默认使用当前页面的 host, 端口 3000) -----
             function getWebSocketURL() {
-                // 如果当前页面是 https 则 wss, 否则 ws
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                // 使用当前主机的 hostname, 端口 3000 (与 server.js 一致)
-                const host = window.location.hostname;
-                return `${protocol}//${host}:3000`;
+                // 直接填你电脑的局域网 IP（例如 192.168.11.207）
+                return "ws://10.110.146.86:3000";
             }
 
             // ----- 工具: 格式化时间 -----
