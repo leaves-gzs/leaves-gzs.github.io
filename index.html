@@ -73,17 +73,16 @@
             letter-spacing: 0.5px;
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
-        /* 游戏按钮（蓝色系） */
-        .card-link.game {
-            background: linear-gradient(135deg, #4a9eff, #2a6eff);
-            box-shadow: 0 8px 24px rgba(42, 110, 255, 0.35);
+        .card-link.games {
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            box-shadow: 0 8px 24px rgba(247, 151, 30, 0.35);
+            color: #1a1a2e;
         }
-        .card-link.game:hover {
+        .card-link.games:hover {
             transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 36px rgba(42, 110, 255, 0.5);
-            background: linear-gradient(135deg, #5aafff, #3a7eff);
+            box-shadow: 0 12px 36px rgba(247, 151, 30, 0.5);
+            background: linear-gradient(135deg, #f8a82e, #ffe030);
         }
-        /* 聊天室按钮（紫色系） */
         .card-link.chat {
             background: linear-gradient(135deg, #9b59b6, #8e44ad);
             box-shadow: 0 8px 24px rgba(155, 89, 182, 0.35);
@@ -137,14 +136,13 @@
         </div>
         <div class="divider"></div>
 
-        <!-- 主要入口 -->
         <div class="card-grid">
-            <a href="game.html" class="card-link game">⚔️ 进入塔防游戏</a>
-            <!-- 新增聊天室按钮 -->
+            <!-- 新增长的游戏中心入口 -->
+            <a href="games.html" class="card-link games">🎮 游戏中心</a>
+            <!-- 聊天室保持不变 -->
             <a href="/chat/" class="card-link chat">💬 进入局域网聊天室</a>
         </div>
 
-        <!-- 其他内容占位 -->
         <div class="placeholder-items">
             <span class="badge">🎨 设计</span>
             <span class="badge">📚 博客</span>
