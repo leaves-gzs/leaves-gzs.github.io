@@ -1,6 +1,2 @@
-const APP_DATA = [
-    { name: "张三", uid: "12345", totalAC: 157, acProblems: [1001,1002,1003,1004,1005,1006,1007,1008,1009,1010], difficultyStats: {"入门":45,"普及-":52,"普及/提高-":38,"普及+/提高":15,"提高+/省选-":7}, heatmap: [{day:"周一",count:5},{day:"周二",count:8},{day:"周三",count:3},{day:"周四",count:12},{day:"周五",count:7},{day:"周六",count:0},{day:"周日",count:2}], updatedAt: "2026-07-09" },
-    { name: "李四", uid: "67890", totalAC: 89, acProblems: [2001,2002,2003,2004,2005], difficultyStats: {"入门":20,"普及-":35,"普及/提高-":25,"普及+/提高":9,"提高+/省选-":0}, heatmap: [{day:"周一",count:2},{day:"周二",count:4},{day:"周三",count:6},{day:"周四",count:1},{day:"周五",count:3},{day:"周六",count:0},{day:"周日",count:1}], updatedAt: "2026-07-09" },
-    { name: "王五", uid: "11111", totalAC: 234, acProblems: [3001,3002,3003,3004,3005,3006,3007,3008], difficultyStats: {"入门":30,"普及-":65,"普及/提高-":78,"普及+/提高":45,"提高+/省选-":16}, heatmap: [{day:"周一",count:10},{day:"周二",count:15},{day:"周三",count:8},{day:"周四",count:20},{day:"周五",count:12},{day:"周六",count:5},{day:"周日",count:3}], updatedAt: "2026-07-09" },
-    { name: "赵六", uid: "22222", totalAC: 45, acProblems: [4001,4002,4003], difficultyStats: {"入门":15,"普及-":18,"普及/提高-":10,"普及+/提高":2,"提高+/省选-":0}, heatmap: [{day:"周一",count:1},{day:"周二",count:0},{day:"周三",count:2},{day:"周四",count:3},{day:"周五",count:1},{day:"周六",count:0},{day:"周日",count:0}], updatedAt: "2026-07-09" }
-];
+// 自动生成于 2026-07-09 03:02:24
+const APP_DATA = [];
