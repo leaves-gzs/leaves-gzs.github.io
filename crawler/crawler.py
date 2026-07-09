@@ -2,6 +2,7 @@ import requests
 import json
 import os
 import time
+import sys
 
 # ========== 从环境变量读取 Cookie ==========
 CLIENT_ID = os.environ.get('LUOGU_CLIENT_ID')
@@ -9,6 +10,8 @@ UID = os.environ.get('LUOGU_UID')
 
 if not CLIENT_ID or not UID:
     raise Exception("❌ 环境变量 LUOGU_CLIENT_ID 或 LUOGU_UID 未设置！")
+
+print(f"🔑 使用 Cookie: __client_id={CLIENT_ID[:10]}..., _uid={UID}")
 
 cookies = {
     '__client_id': CLIENT_ID,
@@ -21,47 +24,83 @@ headers = {
 }
 
 # ========== 读取用户列表 ==========
-with open('users.json', 'r', encoding='utf-8') as f:
-    users = json.load(f)
+try:
+    with open('users.json', 'r', encoding='utf-8') as f:
+        users = json.load(f)
+except Exception as e:
+    print(f"❌ 读取 users.json 失败：{e}")
+    sys.exit(1)
 
-print(f"🚀 开始抓取 {len(users)} 位学生的洛谷数据...")
+print(f"👥 用户列表：{users}")
+print(f"🚀 开始抓取 {len(users)} 位学生的洛谷数据...\n")
 
 all_data = []
 
 for user in users:
-    name = user['name']
-    uid = user['uid']
+    name = user.get('name', '未知')
+    uid = user.get('uid', '')
+    if not uid:
+        print(f"⚠️ 用户 {name} 缺少 uid，跳过")
+        continue
+
     print(f"📡 正在获取 {name} (UID: {uid}) ...")
 
+    # 构造请求 URL（注意：洛谷的 record/list 接口可能需要携带参数）
+    url = f"https://www.luogu.com.cn/record/list?user={uid}&page=1"
+    print(f"  请求 URL: {url}")
+
     try:
-        url = f"https://www.luogu.com.cn/record/list?user={uid}&page=1"
         resp = requests.get(url, cookies=cookies, headers=headers, timeout=15)
-        
+        print(f"  状态码: {resp.status_code}")
+
+        # 打印返回内容的前 200 个字符，方便判断是否是 HTML 登录页
+        content_preview = resp.text[:200]
+        print(f"  返回内容预览: {content_preview}...")
+
         if resp.status_code != 200:
-            print(f"❌ 请求失败，状态码：{resp.status_code}")
+            print(f"❌ 请求失败，状态码 {resp.status_code}")
             continue
 
-        data = resp.json()
-        # 洛谷返回格式可能是 { code: 200, data: { records: [...] } }
+        # 尝试解析 JSON
+        try:
+            data = resp.json()
+        except json.JSONDecodeError:
+            print(f"❌ 返回内容不是 JSON，可能是被反爬或需要登录。")
+            continue
+
+        print(f"  JSON 数据中的 code: {data.get('code')}, message: {data.get('message', '无')}")
+
         if data.get('code') != 200:
-            print(f"❌ API 错误码：{data.get('code')}，信息：{data.get('message', '未知')}")
+            print(f"❌ API 返回错误码：{data.get('code')}，信息：{data.get('message', '未知')}")
+            # 有时返回的错误信息是 "未登录"，说明 Cookie 过期
             continue
 
         records = data.get('data', {}).get('records', [])
+        print(f"  获取到提交记录数：{len(records)}")
+
         if not records:
-            print(f"⚠️ 未找到 {name} 的提交记录")
+            print(f"⚠️ 未找到 {name} 的提交记录，可能该用户没有公开记录或 UID 错误。")
+            # 仍然继续，保留空数据
 
         ac_set = set()
         for rec in records:
+            # 检查多种表示 AC 的方式
             status = rec.get('status')
-            if status == 12 or str(status) == '12' or rec.get('statusText') == 'Accepted':
+            status_text = rec.get('statusText', '')
+            if status == 12 or str(status) == '12' or status_text == 'Accepted':
                 problem = rec.get('problem', {})
                 pid = problem.get('pid')
                 if pid:
                     ac_set.add(pid)
+                else:
+                    # 如果 problem 里没有 pid，尝试直接从 record 里拿
+                    pid_direct = rec.get('pid')
+                    if pid_direct:
+                        ac_set.add(pid_direct)
 
         ac_list = list(ac_set)
         total_ac = len(ac_list)
+        print(f"  提取到 AC 题目数：{total_ac}")
 
         # ---- 简易难度分布（示例） ----
         diff_keys = ['入门', '普及-', '普及/提高-', '普及+/提高', '提高+/省选-']
@@ -96,17 +135,23 @@ for user in users:
             'updatedAt': time.strftime('%Y-%m-%d %H:%M:%S')
         })
 
-        print(f"✅ {name} AC 数：{total_ac}")
+        print(f"✅ {name} 数据已处理")
 
     except Exception as e:
-        print(f"❌ 处理 {name} 时异常：{type(e).__name__}: {e}")
+        print(f"❌ 处理 {name} 时发生异常：{type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
 
-    time.sleep(0.5)
+    time.sleep(0.5)  # 礼貌间隔
 
 # ========== 排序并保存 ==========
 all_data.sort(key=lambda x: x['totalAC'], reverse=True)
 
-output_path = '../oi-dashboard/assets/app-data.js'
+# 确保目标目录存在
+output_dir = '../oi-dashboard/assets'
+os.makedirs(output_dir, exist_ok=True)
+output_path = os.path.join(output_dir, 'app-data.js')
+
 js_content = f"// 自动生成于 {time.strftime('%Y-%m-%d %H:%M:%S')}\nconst APP_DATA = {json.dumps(all_data, ensure_ascii=False, indent=2)};\n"
 
 with open(output_path, 'w', encoding='utf-8') as f:
