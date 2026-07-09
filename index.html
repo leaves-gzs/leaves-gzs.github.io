@@ -3,15 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>塔防游戏 - 完整版</title>
-    <link rel="stylesheet" href="style.css">
+    <title>我的主页</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(145deg, #0f0c29, #302b63, #24243e);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 32px;
+            padding: 48px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        h1 {
+            font-size: 3.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .divider {
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, #f6d365, #fda085);
+            border-radius: 4px;
+            margin: 16px auto 28px;
+        }
+        .card-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .card-link {
+            display: inline-block;
+            padding: 18px 32px;
+            background: linear-gradient(135deg, #4a9eff, #2a6eff);
+            border-radius: 60px;
+            color: #fff;
+            font-size: 1.3rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            box-shadow: 0 8px 24px rgba(42, 110, 255, 0.35);
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .card-link:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 36px rgba(42, 110, 255, 0.5);
+            background: linear-gradient(135deg, #5aafff, #3a7eff);
+        }
+        .card-link:active {
+            transform: scale(0.97);
+        }
+        .extra-text {
+            margin-top: 32px;
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 24px;
+        }
+        .extra-text span {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        /* 占位内容示例 */
+        .placeholder-items {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin: 16px 0 8px;
+        }
+        .badge {
+            background: rgba(255, 255, 255, 0.07);
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        @media (max-width: 480px) {
+            .container { padding: 32px 20px; }
+            h1 { font-size: 2.4rem; }
+            .card-link { padding: 14px 24px; font-size: 1.1rem; }
+        }
+    </style>
 </head>
 <body>
-    <!-- 游戏画布 -->
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <a href="/oi-dashboard/">📊 AC统计看板</a>
+    <div class="container">
+        <h1>🚀 我的主页</h1>
+        <div class="subtitle">
+            这里汇聚了我的创意作品<br>
+            欢迎探索！
+        </div>
+        <div class="divider"></div>
 
-    <!-- 加载游戏脚本 -->
-    <script src="game.js"></script>
+        <!-- 主要入口：塔防游戏 -->
+        <div class="card-grid">
+            <a href="game.html" class="card-link">⚔️ 进入塔防游戏</a>
+        </div>
+        <a href="/oi-dashboard/">📊 AC统计看板</a>
+
+        <!-- 其他内容占位（您可以在这里添加更多链接或信息） -->
+        <div class="placeholder-items">
+            <span class="badge">🎨 设计</span>
+            <span class="badge">📚 博客</span>
+            <span class="badge">🎮 更多游戏</span>
+        </div>
+
+        <div class="extra-text">
+            <span>💡 点击按钮即可开始游戏 · 建议使用桌面端获得最佳体验</span>
+        </div>
+    </div>
 </body>
 </html>
