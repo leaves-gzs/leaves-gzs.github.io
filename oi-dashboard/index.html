@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信奥AC统计看板</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>🏆 信奥AC统计看板</h1>
+            <nav>
+                <a href="/oi-dashboard/" class="active">总榜</a>
+                <a href="/oi-dashboard/leaderboard/">当日看板</a>
+                <a href="/oi-dashboard/problems/">题目榜</a>
+                <a href="/">🏠 返回主页</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="filters">
+        <div class="container">
+            <div class="filter-group">
+                <label>日期范围：</label>
+                <input type="date" id="startDate">
+                <span>至</span>
+                <input type="date" id="endDate">
+            </div>
+            <div class="filter-group">
+                <label>搜索：</label>
+                <input type="text" id="searchInput" placeholder="输入姓名...">
+                <button id="searchBtn">🔍 查询</button>
+                <button id="resetBtn">重置</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="stats-cards">
+        <div class="container">
+            <div class="card"><div class="card-icon">👥</div><div class="card-info"><div class="card-label">总人数</div><div class="card-value" id="totalUsers">0</div></div></div>
+            <div class="card"><div class="card-icon">✅</div><div class="card-info"><div class="card-label">总通过数</div><div class="card-value" id="totalAC">0</div></div></div>
+            <div class="card"><div class="card-icon">📊</div><div class="card-info"><div class="card-label">平均AC数</div><div class="card-value" id="avgAC">0</div></div></div>
+            <div class="card"><div class="card-icon">🔥</div><div class="card-info"><div class="card-label">今日活跃</div><div class="card-value" id="todayActive">0</div></div></div>
+        </div>
+    </section>
+
+    <section class="table-section">
+        <div class="container">
+            <h2>📊 排行榜</h2>
+            <div class="table-wrapper">
+                <table id="rankingTable">
+                    <thead><tr><th>排名</th><th>姓名</th><th>AC总数</th><th>难度分布</th><th>半天热力图</th><th>操作</th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </section>
+
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeModal">&times;</span>
+            <h3 id="modalTitle">题目详情</h3>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="assets/app-data.js"></script>
+    <script src="assets/js/main.js"></script>
+</body>
+</html>
