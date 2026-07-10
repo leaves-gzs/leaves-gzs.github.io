@@ -3,14 +3,317 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>塔防游戏 - 游戏页面</title>
-    <link rel="stylesheet" href="style.css">
+    <title>🎮 游戏中心 - 塔防主页</title>
+    <style>
+        /* ===== 全局重置 & 布局 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(145deg, #0b1a2e 0%, #1a2f3f 100%);
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, system-ui, sans-serif;
+            padding: 20px;
+        }
+
+        .game-home {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 40px;
+            padding: 32px 40px 40px 40px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+            max-width: 900px;
+            width: 100%;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .game-home:hover {
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.10);
+        }
+
+        /* ===== 头部 ===== */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header .brand .icon {
+            font-size: 32px;
+            line-height: 1;
+        }
+
+        .header .brand h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #f0f7fa;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .header .brand h1 span {
+            color: #7ecf8a;
+        }
+
+        .header .badge {
+            background: rgba(126, 207, 138, 0.18);
+            border: 1px solid rgba(126, 207, 138, 0.25);
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #b8e0c0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header .badge .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #7ecf8a;
+            animation: pulse-dot 1.8s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.3;
+                transform: scale(0.7);
+            }
+        }
+
+        /* ===== 画布容器 ===== */
+        .canvas-wrapper {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 32px rgba(0, 0, 0, 0.4);
+            background: #1a2f3f;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 800 / 600;
+            background: #1e3a4a;
+            cursor: default;
+        }
+
+        /* ===== 底部操作栏 ===== */
+        .footer-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 22px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer-actions .info-text {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .footer-actions .info-text kbd {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* ===== 跳转按钮 ===== */
+        .btn-pvz {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #43a047, #2e7d32);
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 700;
+            border: none;
+            border-radius: 60px;
+            cursor: pointer;
+            box-shadow: 0 6px 24px rgba(46, 125, 50, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            text-decoration: none;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-pvz::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent 60%);
+            pointer-events: none;
+        }
+
+        .btn-pvz:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 36px rgba(46, 125, 50, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.15);
+            background: linear-gradient(135deg, #4caf50, #388e3c);
+        }
+
+        .btn-pvz:active {
+            transform: translateY(0px) scale(0.97);
+            box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3);
+        }
+
+        .btn-pvz .emoji {
+            font-size: 24px;
+            line-height: 1;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        }
+
+        .btn-pvz .arrow {
+            font-size: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .btn-pvz:hover .arrow {
+            transform: translateX(4px);
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 680px) {
+            .game-home {
+                padding: 18px 16px 24px 16px;
+                border-radius: 28px;
+            }
+
+            .header .brand h1 {
+                font-size: 20px;
+            }
+
+            .header .badge {
+                font-size: 11px;
+                padding: 4px 12px;
+            }
+
+            .btn-pvz {
+                padding: 12px 24px;
+                font-size: 15px;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .btn-pvz .emoji {
+                font-size: 20px;
+            }
+
+            .footer-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .footer-actions .info-text {
+                text-align: center;
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .header .brand .icon {
+                font-size: 24px;
+            }
+            .header .brand h1 {
+                font-size: 17px;
+            }
+            .btn-pvz {
+                font-size: 14px;
+                padding: 10px 18px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- 游戏画布 -->
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-    <!-- 加载游戏脚本 -->
+    <div class="game-home">
+        <!-- ===== 头部 ===== -->
+        <div class="header">
+            <div class="brand">
+                <span class="icon">🏰</span>
+                <h1>塔防<span>游戏</span></h1>
+            </div>
+            <div class="badge">
+                <span class="dot"></span>
+                在线 · 经典模式
+            </div>
+        </div>
+
+        <!-- ===== 画布 ===== -->
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+        </div>
+
+        <!-- ===== 底部 ===== -->
+        <div class="footer-actions">
+            <span class="info-text">
+                🎯 点击画布交互 · <kbd>v0.1</kbd>
+            </span>
+
+            <!-- ★★★ 跳转按钮 ★★★ -->
+            <button class="btn-pvz" id="goToPvzBtn">
+                <span class="emoji">🌱</span>
+                进入植物大战僵尸
+                <span class="arrow">→</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== 加载游戏脚本 ===== -->
     <script src="game.js"></script>
+
+    <!-- ===== 跳转逻辑 ===== -->
+    <script>
+        (function() {
+            'use strict';
+
+            const btn = document.getElementById('goToPvzBtn');
+
+            if (btn) {
+                btn.addEventListener('click', function(e) {
+                    // 跳转到同目录下的 PVZ.html
+                    // 如果文件名为 PVZ.html 或 pvz.html，请根据实际情况调整
+                    window.location.href = 'PVZ.html';
+                });
+            }
+
+            // 控制台提示
+            console.log('🏰 塔防游戏主页已加载');
+            console.log('🌱 点击按钮可跳转到植物大战僵尸 (PVZ.html)');
+        })();
+    </script>
+
 </body>
 </html>
