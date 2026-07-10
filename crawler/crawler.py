@@ -20,7 +20,8 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br',
+    # 关键修改：去掉 br，只保留 gzip 和 deflate
+    'Accept-Encoding': 'gzip, deflate',
     'Referer': 'https://www.luogu.com.cn/',
     'Origin': 'https://www.luogu.com.cn',
     'Connection': 'keep-alive',
