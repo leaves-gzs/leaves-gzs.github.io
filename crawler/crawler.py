@@ -1,4 +1,4 @@
-import cloudscraper
+import requests
 import json
 import os
 import time
@@ -13,14 +13,13 @@ if not CLIENT_ID or not UID:
 
 print(f"🔑 使用 Cookie: __client_id={CLIENT_ID[:10]}..., _uid={UID}")
 
-# 构造 Cookie 字符串（用于请求头）
 cookie_str = f"__client_id={CLIENT_ID}; _uid={UID}"
 
+# 请求头：只告诉服务器我们接受 gzip 压缩
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    # 关键修改：去掉 br，只保留 gzip 和 deflate
     'Accept-Encoding': 'gzip, deflate',
     'Referer': 'https://www.luogu.com.cn/',
     'Origin': 'https://www.luogu.com.cn',
@@ -28,10 +27,9 @@ headers = {
     'Cookie': cookie_str,
 }
 
-# 创建 cloudscraper 会话（自动处理 Cloudflare 人机验证）
-scraper = cloudscraper.create_scraper()
-# 设置默认 headers
-scraper.headers.update(headers)
+# 创建 requests 会话
+session = requests.Session()
+session.headers.update(headers)
 
 # ========== 读取用户列表 ==========
 try:
@@ -58,8 +56,7 @@ for user in users:
     print(f"  请求 URL: {url}")
 
     try:
-        # 使用 cloudscraper 发送请求
-        resp = scraper.get(url, timeout=30)
+        resp = session.get(url, timeout=30)
         print(f"  状态码: {resp.status_code}")
 
         if resp.status_code != 200:
@@ -68,11 +65,15 @@ for user in users:
             print(f"  返回内容预览: {resp.text[:200]}...")
             continue
 
-        # 尝试解析 JSON
+        # 打印实际响应头的 Content-Encoding，确认是否真的解压了
+        print(f"  Content-Encoding: {resp.headers.get('Content-Encoding', '无')}")
+
+        # 尝试解析 JSON（requests 会自动解压 gzip）
         try:
             data = resp.json()
-        except json.JSONDecodeError:
-            print(f"❌ 返回内容不是 JSON，可能是 HTML 页面。")
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON 解析失败: {e}")
+            # 打印前 200 个字符看看是什么
             print(f"  返回内容预览: {resp.text[:200]}...")
             continue
 
@@ -146,7 +147,7 @@ for user in users:
         import traceback
         traceback.print_exc()
 
-    time.sleep(1)  # 适当延时，降低风险
+    time.sleep(1)
 
 # ========== 排序并保存 ==========
 all_data.sort(key=lambda x: x['totalAC'], reverse=True)
