@@ -1,12 +1,11 @@
 // ================================================================
-// game.js - 塔防游戏完整逻辑（视觉升级版）
-// 新增：炮塔造型升级、子弹拖尾、UI美化
+// game.js - 塔防游戏完整逻辑（视觉升级 + 卡死修复版）
+// 修复：Boss/召唤师生成敌人时使用队列，避免遍历时修改数组
 // ================================================================
 
 "use strict";
 
 // ---------- 画布扩展方法 ----------
-// 为 Canvas 添加上下文增加 roundRect 方法（用于圆角矩形）
 if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, radii) {
         const r = typeof radii === 'number' ? radii : (radii || 0);
@@ -44,7 +43,6 @@ function distance(x1, y1, x2, y2) {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-// 路径定义
 let g_path = [];
 
 function initPath() {
@@ -136,7 +134,7 @@ const WeaponType = {
 let g_gamePtr = null;
 
 // ================================================================
-// 3. 粒子系统（用于特效）
+// 3. 粒子系统
 // ================================================================
 class Particle {
     constructor(x, y, color, vx, vy, size, life) {
@@ -154,7 +152,7 @@ class Particle {
     update(dt) {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
-        this.vy += 60 * dt; // 轻微重力
+        this.vy += 60 * dt;
         this.life -= dt;
         if (this.life <= 0) this.alive = false;
     }
@@ -186,8 +184,8 @@ class Bullet {
         this.active = true;
         this.isCritical = isCritical;
         this.critMultiplier = critMultiplier;
-        this.trail = []; // 拖尾轨迹点
-        this.trailLength = 12; // 拖尾长度
+        this.trail = [];
+        this.trailLength = 12;
     }
 
     update(dt) {
@@ -200,7 +198,6 @@ class Bullet {
         const dist = Math.sqrt(dx * dx + dy * dy);
         const move = this.speed * dt;
 
-        // 记录轨迹点
         this.trail.push({ x: this.pos.x, y: this.pos.y });
         if (this.trail.length > this.trailLength) {
             this.trail.shift();
@@ -213,7 +210,6 @@ class Bullet {
             }
             const killed = this.target.takeDamage(finalDamage);
 
-            // 命中特效粒子
             if (g_gamePtr) {
                 g_gamePtr.spawnHitParticles(this.target.pos.x, this.target.pos.y, this.isCritical);
             }
@@ -236,7 +232,6 @@ class Bullet {
     draw(ctx) {
         if (!this.active) return;
 
-        // ---- 绘制拖尾 ----
         for (let i = 0; i < this.trail.length; i++) {
             const t = i / this.trail.length;
             const alpha = t * 0.6;
@@ -250,7 +245,6 @@ class Bullet {
             ctx.fill();
         }
 
-        // ---- 绘制子弹主体（发光效果） ----
         ctx.save();
         const grad = ctx.createRadialGradient(
             this.pos.x - 2, this.pos.y - 2, 1,
@@ -273,7 +267,6 @@ class Bullet {
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // 高光
         ctx.fillStyle = 'rgba(255,255,255,0.6)';
         ctx.beginPath();
         ctx.arc(this.pos.x - 1.5, this.pos.y - 2, this.isCritical ? 2.5 : 1.8, 0, Math.PI * 2);
@@ -316,11 +309,9 @@ class Turret {
         this.reviveCooldown = 0;
         this.soulReturnCD = 0;
 
-        // 炮口闪光
         this.muzzleFlash = 0;
         this.muzzleAngle = 0;
 
-        // 特殊状态
         this.heatTarget = null;
         this.heatAccumulate = 0;
         this.heatDamage = 0;
@@ -618,16 +609,12 @@ class Turret {
             closest.pos = { x: g_path[0].x, y: g_path[0].y };
             closest.pathIndex = 0;
             this.teleportTimer = this.teleportCD;
-            // 传送特效粒子
             if (g_gamePtr) {
                 g_gamePtr.spawnTeleportParticles(closest.pos.x, closest.pos.y);
             }
         }
     }
 
-    // ============================================================
-    // 绘制炮塔（视觉升级版）
-    // ============================================================
     draw(ctx) {
         if (this.isDead) return;
         const px = this.pos.x,
@@ -635,9 +622,7 @@ class Turret {
 
         ctx.save();
 
-        // ---- 根据类型绘制精致炮塔 ----
         switch (this.type) {
-            // -------- 普通塔：蓝色水晶 --------
             case TurretType.TT_NORMAL: {
                 const grad = ctx.createRadialGradient(px - 4, py - 5, 2, px, py, 16);
                 grad.addColorStop(0, '#66bbff');
@@ -650,15 +635,12 @@ class Turret {
                 ctx.arc(px, py, 15, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 高光
                 ctx.fillStyle = 'rgba(255,255,255,0.3)';
                 ctx.beginPath();
                 ctx.arc(px - 4, py - 5, 5, 0, Math.PI * 2);
                 ctx.fill();
                 break;
             }
-
-            // -------- 狙击塔：红色棱镜 --------
             case TurretType.TT_SNIPER: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
                 grad.addColorStop(0, '#ff6666');
@@ -671,7 +653,6 @@ class Turret {
                 ctx.roundRect(px - 14, py - 14, 28, 28, 4);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 瞄准十字
                 ctx.strokeStyle = 'rgba(255,255,255,0.8)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -687,8 +668,6 @@ class Turret {
                 ctx.stroke();
                 break;
             }
-
-            // -------- 速射塔：绿色三角 --------
             case TurretType.TT_RAPID: {
                 const grad = ctx.createRadialGradient(px - 2, py - 4, 2, px, py, 16);
                 grad.addColorStop(0, '#66ff88');
@@ -704,13 +683,10 @@ class Turret {
                 ctx.closePath();
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 枪管
                 ctx.fillStyle = '#44aa66';
                 ctx.fillRect(px - 3, py - 20, 6, 8);
                 break;
             }
-
-            // -------- 肉盾塔：金色六边形 --------
             case TurretType.TT_TANK: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 18);
                 grad.addColorStop(0, '#ffdd66');
@@ -729,7 +705,6 @@ class Turret {
                 ctx.closePath();
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 盾牌标记
                 ctx.fillStyle = 'rgba(255,255,255,0.2)';
                 ctx.font = '18px sans-serif';
                 ctx.textAlign = 'center';
@@ -737,8 +712,6 @@ class Turret {
                 ctx.fillText('🛡', px, py + 1);
                 break;
             }
-
-            // -------- 治疗塔：粉色爱心 --------
             case TurretType.TT_HEAL: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 14);
                 grad.addColorStop(0, '#ff88aa');
@@ -756,7 +729,6 @@ class Turret {
                 ctx.closePath();
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 十字
                 ctx.strokeStyle = 'rgba(255,255,255,0.6)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -767,8 +739,6 @@ class Turret {
                 ctx.stroke();
                 break;
             }
-
-            // -------- 地刺塔：棕色尖刺 --------
             case TurretType.TT_SPIKE: {
                 ctx.fillStyle = '#8B6914';
                 ctx.shadowColor = 'rgba(139,69,19,0.3)';
@@ -791,8 +761,6 @@ class Turret {
                 ctx.shadowBlur = 0;
                 break;
             }
-
-            // -------- 寒冰塔：冰晶 --------
             case TurretType.TT_ICE: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
                 grad.addColorStop(0, '#88ddff');
@@ -811,7 +779,6 @@ class Turret {
                 ctx.closePath();
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 冰晶纹路
                 ctx.strokeStyle = 'rgba(255,255,255,0.4)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -824,8 +791,6 @@ class Turret {
                 ctx.stroke();
                 break;
             }
-
-            // -------- 热力塔：火焰 --------
             case TurretType.TT_HEAT: {
                 const grad = ctx.createRadialGradient(px - 2, py - 4, 2, px, py, 18);
                 grad.addColorStop(0, '#ff8844');
@@ -844,7 +809,6 @@ class Turret {
                 ctx.closePath();
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 热量显示
                 if (this.heatAccumulate > 0) {
                     ctx.fillStyle = `rgba(255,200,50,${Math.min(1, this.heatAccumulate / 5)})`;
                     ctx.font = '11px sans-serif';
@@ -854,8 +818,6 @@ class Turret {
                 }
                 break;
             }
-
-            // -------- 引力塔：暗紫漩涡 --------
             case TurretType.TT_GRAVITY: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 17);
                 grad.addColorStop(0, '#9966cc');
@@ -868,7 +830,6 @@ class Turret {
                 ctx.arc(px, py, 16, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 螺旋纹
                 ctx.strokeStyle = 'rgba(200,150,255,0.3)';
                 ctx.lineWidth = 1.5;
                 for (let i = 0; i < 3; i++) {
@@ -895,8 +856,6 @@ class Turret {
                 }
                 break;
             }
-
-            // -------- 风灵塔：青色旋风 --------
             case TurretType.TT_WIND: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 14);
                 grad.addColorStop(0, '#88eeff');
@@ -909,7 +868,6 @@ class Turret {
                 ctx.arc(px, py, 13, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 旋风标记
                 ctx.strokeStyle = 'rgba(255,255,255,0.5)';
                 ctx.lineWidth = 2;
                 for (let i = 0; i < 3; i++) {
@@ -925,8 +883,6 @@ class Turret {
                 }
                 break;
             }
-
-            // -------- 传送塔：紫色传送门 --------
             case TurretType.TT_TELEPORT: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 15);
                 grad.addColorStop(0, '#dd88ff');
@@ -939,7 +895,6 @@ class Turret {
                 ctx.arc(px, py, 14, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 传送符号
                 ctx.strokeStyle = 'rgba(255,255,255,0.6)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -953,7 +908,6 @@ class Turret {
                 ctx.beginPath();
                 ctx.arc(px, py, 8, 0, Math.PI * 2);
                 ctx.stroke();
-                // 冷却显示
                 ctx.fillStyle = 'rgba(255,255,255,0.7)';
                 ctx.font = '10px sans-serif';
                 ctx.textAlign = 'center';
@@ -961,8 +915,6 @@ class Turret {
                 ctx.fillText(this.teleportTimer.toFixed(1), px, py - 18);
                 break;
             }
-
-            // -------- 共振塔：紫水晶 --------
             case TurretType.TT_RESONANCE: {
                 const grad = ctx.createRadialGradient(px - 4, py - 5, 2, px, py, 16);
                 grad.addColorStop(0, '#cc88ff');
@@ -975,7 +927,6 @@ class Turret {
                 ctx.roundRect(px - 13, py - 13, 26, 26, 6);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 共振波
                 ctx.strokeStyle = 'rgba(200,150,255,0.2)';
                 ctx.lineWidth = 1;
                 for (let i = 0; i < 3; i++) {
@@ -986,8 +937,6 @@ class Turret {
                 }
                 break;
             }
-
-            // -------- 灵魂链接塔：青绿连结 --------
             case TurretType.TT_SOUL_LINK: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
                 grad.addColorStop(0, '#66ffcc');
@@ -1000,7 +949,6 @@ class Turret {
                 ctx.arc(px, py, 14, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 链接标记
                 ctx.strokeStyle = 'rgba(255,255,255,0.5)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -1025,8 +973,6 @@ class Turret {
                 }
                 break;
             }
-
-            // -------- 剧毒塔：翠绿毒液 --------
             case TurretType.TT_TOXIC_CATALYST: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
                 grad.addColorStop(0, '#88ff44');
@@ -1039,7 +985,6 @@ class Turret {
                 ctx.arc(px, py, 14, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 毒液滴
                 ctx.fillStyle = 'rgba(200,255,100,0.4)';
                 for (let i = 0; i < 4; i++) {
                     const a = i * Math.PI / 2 + Date.now() * 0.001;
@@ -1050,8 +995,6 @@ class Turret {
                 }
                 break;
             }
-
-            // -------- 静电塔：金黄闪电 --------
             case TurretType.TT_STATIC_ATTACH: {
                 const grad = ctx.createRadialGradient(px - 3, py - 4, 2, px, py, 16);
                 grad.addColorStop(0, '#ffdd44');
@@ -1064,7 +1007,6 @@ class Turret {
                 ctx.arc(px, py, 14, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 闪电标记
                 ctx.strokeStyle = 'rgba(255,255,200,0.6)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -1080,7 +1022,6 @@ class Turret {
 
         ctx.restore();
 
-        // ---- 炮口闪光 ----
         if (this.muzzleFlash > 0) {
             ctx.save();
             const flashLen = 22 * (this.muzzleFlash / 0.15);
@@ -1101,17 +1042,14 @@ class Turret {
             this.muzzleFlash -= 0.016;
         }
 
-        // ---- 血条（升级版） ----
         const ratio = this.hp / this.maxHp;
         const barWidth = 32;
         const barY = py - 26;
         ctx.save();
-        // 背景
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.beginPath();
         ctx.roundRect(px - barWidth / 2 - 1, barY - 1, barWidth + 2, 7, 3);
         ctx.fill();
-        // 血条
         const hpColor = ratio > 0.6 ? '#44dd44' : (ratio > 0.3 ? '#ddcc44' : '#dd4444');
         ctx.fillStyle = hpColor;
         ctx.shadowColor = hpColor;
@@ -1120,7 +1058,6 @@ class Turret {
         ctx.roundRect(px - barWidth / 2, barY, barWidth * Math.max(0, ratio), 5, 2);
         ctx.fill();
         ctx.shadowBlur = 0;
-        // 边框
         ctx.strokeStyle = 'rgba(255,255,255,0.2)';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -1128,7 +1065,6 @@ class Turret {
         ctx.stroke();
         ctx.restore();
 
-        // ---- 等级标签 ----
         ctx.save();
         ctx.fillStyle = 'rgba(255,255,255,0.7)';
         ctx.font = 'bold 9px sans-serif';
@@ -1137,7 +1073,6 @@ class Turret {
         ctx.fillText('Lv' + this.level, px, py + 22);
         ctx.restore();
 
-        // ---- 特殊标记 ----
         const labels = {
             [TurretType.TT_TANK]: '🛡',
             [TurretType.TT_HEAT]: '🔥',
@@ -1158,7 +1093,6 @@ class Turret {
             ctx.restore();
         }
 
-        // ---- 寒冰范围 ----
         if (this.type === TurretType.TT_ICE && this.iceActive) {
             ctx.save();
             ctx.strokeStyle = 'rgba(0,200,255,0.2)';
@@ -1168,7 +1102,6 @@ class Turret {
             ctx.arc(this.icePos.x, this.icePos.y, 80, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
-            // 冰晶粒子
             for (let i = 0; i < 8; i++) {
                 const a = i * Math.PI / 4 + Date.now() * 0.0005;
                 const r = 60 + Math.sin(Date.now() * 0.002 + i) * 15;
@@ -1181,12 +1114,10 @@ class Turret {
         }
     }
 
-    // ---- 更新炮塔 ----
     update(dt, bullets, enemies) {
         if (this.isDead) return;
         if (this.type === TurretType.TT_HEAL) return;
 
-        // ---- 热力塔 ----
         if (this.type === TurretType.TT_HEAT) {
             if (!this.target || !this.target.alive) { this.heatAccumulate = 0; return; }
             const d = distance(this.pos.x, this.pos.y, this.target.pos.x, this.target.pos.y);
@@ -1202,7 +1133,6 @@ class Turret {
             return;
         }
 
-        // ---- 引力塔 ----
         if (this.type === TurretType.TT_GRAVITY) {
             if (!this.gravityActive) {
                 let nearest = null;
@@ -1241,7 +1171,6 @@ class Turret {
 
         if (this.type === TurretType.TT_WIND || this.type === TurretType.TT_TELEPORT) return;
 
-        // ---- 地刺 ----
         if (this.type === TurretType.TT_SPIKE) {
             if (this.cooldown > 0) this.cooldown -= dt;
             else {
@@ -1256,7 +1185,6 @@ class Turret {
             return;
         }
 
-        // ---- 寒冰 ----
         if (this.type === TurretType.TT_ICE) {
             if (this.iceTimer > 0) this.iceTimer -= dt;
             else {
@@ -1291,7 +1219,6 @@ class Turret {
             return;
         }
 
-        // ---- 共振水晶塔 ----
         if (this.type === TurretType.TT_RESONANCE) {
             if (this.cooldown > 0) this.cooldown -= dt;
             if (!this.target || !this.target.alive) { this.target = null; return; }
@@ -1308,7 +1235,6 @@ class Turret {
                             if (e.hp <= 0) e.alive = false;
                         }
                     }
-                    // 爆炸粒子
                     if (g_gamePtr) {
                         g_gamePtr.spawnExplosionParticles(this.target.pos.x, this.target.pos.y, '#aa44ff');
                     }
@@ -1319,7 +1245,6 @@ class Turret {
             return;
         }
 
-        // ---- 灵魂链接塔 ----
         if (this.type === TurretType.TT_SOUL_LINK) {
             if (!this.soulLinkTarget || !this.soulLinkTarget.alive) {
                 let best = null;
@@ -1350,7 +1275,6 @@ class Turret {
             return;
         }
 
-        // ---- 剧毒催化塔 ----
         if (this.type === TurretType.TT_TOXIC_CATALYST) {
             if (this.cooldown > 0) this.cooldown -= dt;
             if (!this.target || !this.target.alive) { this.target = null; return; }
@@ -1363,7 +1287,6 @@ class Turret {
             return;
         }
 
-        // ---- 静电附着塔 ----
         if (this.type === TurretType.TT_STATIC_ATTACH) {
             if (this.cooldown > 0) this.cooldown -= dt;
             if (!this.target || !this.target.alive) { this.target = null; return; }
@@ -1380,7 +1303,6 @@ class Turret {
                         if (this.target.hp <= 0) this.target.alive = false;
                         e.hp -= dmg2;
                         if (e.hp <= 0) e.alive = false;
-                        // 闪电粒子
                         if (g_gamePtr) {
                             g_gamePtr.spawnLightningParticles(this.target.pos.x, this.target.pos.y, e.pos.x, e.pos.y);
                         }
@@ -1391,7 +1313,6 @@ class Turret {
             return;
         }
 
-        // ---- 普通攻击 ----
         if (this.cooldown > 0) this.cooldown -= dt;
         if (!this.target || !this.target.alive) { this.target = null; return; }
         const d = distance(this.pos.x, this.pos.y, this.target.pos.x, this.target.pos.y);
@@ -1408,11 +1329,9 @@ class Turret {
             const fireRateMul = 1 + (g_gamePtr ? g_gamePtr.getAttackSpeedBonus() : 0);
             const actualFireRate = this.fireRate * fireRateMul;
 
-            // 创建子弹
             const b = new Bullet(this.pos, this.target, this, bulletSpeed, baseDamage, isCritical, critMultiplier);
             bullets.push(b);
 
-            // 炮口闪光
             this.muzzleFlash = 0.15;
             this.muzzleAngle = Math.atan2(
                 this.target.pos.y - this.pos.y,
@@ -1425,7 +1344,7 @@ class Turret {
 }
 
 // ================================================================
-// 6. Enemy 类（敌人 - 视觉升级版）
+// 6. Enemy 类（视觉升级版）
 // ================================================================
 class Enemy {
     constructor(wave, type = EnemyType.ET_NORMAL) {
@@ -1669,11 +1588,11 @@ class Enemy {
         }
 
         if (this.type >= EnemyType.ET_BOSS1 && this.type <= EnemyType.ET_BOSS3) {
-            this.activateBossSkill(dt, g_gamePtr ? g_gamePtr.enemies : []);
+            this.activateBossSkill(dt);
         }
     }
 
-    activateBossSkill(dt, enemies) {
+    activateBossSkill(dt) {
         if (!this.alive || this.type < EnemyType.ET_BOSS1 || this.type > EnemyType.ET_BOSS3) return;
         this.bossSkillTimer += dt;
         if (this.bossSkillTimer < 5.0) return;
@@ -1692,7 +1611,10 @@ class Enemy {
                     m.emoji = '🟣';
                     m.pos.x = this.pos.x + (Math.random() * 80 - 40);
                     m.pos.y = this.pos.y + (Math.random() * 80 - 40);
-                    enemies.push(m);
+                    // 使用待添加队列，防止遍历时修改列表
+                    if (g_gamePtr) {
+                        g_gamePtr.pendingEnemies.push(m);
+                    }
                 }
                 if (g_gamePtr) {
                     g_gamePtr.spawnExplosionParticles(this.pos.x, this.pos.y, '#cc44ff');
@@ -1700,6 +1622,8 @@ class Enemy {
                 break;
             }
             case 1: {
+                // 敌人列表通过参数传递，但我们可以直接使用g_gamePtr.enemies（此时尚未被修改）
+                const enemies = g_gamePtr ? g_gamePtr.enemies : [];
                 for (const e of enemies) {
                     if (e.alive && e !== this && distance(e.pos.x, e.pos.y, this.pos.x, this.pos.y) < 150) {
                         e.slowTimer = 3.0;
@@ -1728,7 +1652,6 @@ class Enemy {
         this.hp -= actualDmg;
         if (this.hp <= 0) {
             this.alive = false;
-            // 死亡粒子
             if (g_gamePtr) {
                 g_gamePtr.spawnDeathParticles(this.pos.x, this.pos.y, this.color);
             }
@@ -1776,7 +1699,6 @@ class Enemy {
         return false;
     }
 
-    // ---- 绘制敌人（视觉升级版） ----
     draw(ctx) {
         if (!this.alive) return;
         const px = this.pos.x,
@@ -1785,7 +1707,6 @@ class Enemy {
 
         ctx.save();
 
-        // ---- 主体（带发光效果） ----
         const grad = ctx.createRadialGradient(px - r * 0.3, py - r * 0.3, r * 0.1, px, py, r);
         grad.addColorStop(0, this.lightenColor(this.color, 40));
         grad.addColorStop(0.7, this.color);
@@ -1804,7 +1725,6 @@ class Enemy {
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
 
-        // ---- Boss/特殊敌人边框 ----
         if (this.type >= EnemyType.ET_BOSS1 || this.type === EnemyType.ET_SUMMONER || this.type === EnemyType.ET_WAR_CRY) {
             ctx.strokeStyle = 'rgba(255,215,0,0.6)';
             ctx.lineWidth = 2;
@@ -1815,14 +1735,12 @@ class Enemy {
             ctx.setLineDash([]);
         }
 
-        // ---- 表情符号 ----
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.font = `${r * 0.9}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.emoji, px, py + 1);
 
-        // ---- 战争咆哮光环 ----
         if (this.isWarCry) {
             ctx.strokeStyle = `rgba(255,200,100,${0.2 + Math.sin(Date.now() * 0.002) * 0.1})`;
             ctx.lineWidth = 2;
@@ -1833,14 +1751,12 @@ class Enemy {
             ctx.setLineDash([]);
         }
 
-        // ---- 减速效果 ----
         if (this.slowTimer > 0) {
             ctx.strokeStyle = 'rgba(0,200,255,0.3)';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(px, py, r + 4, 0, Math.PI * 2);
             ctx.stroke();
-            // 冰晶粒子
             for (let i = 0; i < 4; i++) {
                 const a = i * Math.PI / 2 + Date.now() * 0.002;
                 const dist2 = r + 5 + Math.sin(Date.now() * 0.004 + i) * 3;
@@ -1851,7 +1767,6 @@ class Enemy {
             }
         }
 
-        // ---- 毒效果 ----
         if (this.poisonStacks > 0) {
             ctx.fillStyle = `rgba(50,255,50,${0.1 + Math.sin(Date.now() * 0.005) * 0.05})`;
             ctx.beginPath();
@@ -1859,7 +1774,6 @@ class Enemy {
             ctx.fill();
         }
 
-        // ---- 共振标记 ----
         if (this.resonanceStacks > 0) {
             ctx.fillStyle = `rgba(180,50,255,${0.3 + Math.sin(Date.now() * 0.004) * 0.15})`;
             ctx.font = '12px sans-serif';
@@ -1870,7 +1784,6 @@ class Enemy {
 
         ctx.restore();
 
-        // ---- 血条（升级版） ----
         const ratio = this.hp / this.maxHp;
         const barWidth = r * 2 + 6;
         const barY = py - r - 10;
@@ -1891,7 +1804,6 @@ class Enemy {
         ctx.restore();
     }
 
-    // ---- 颜色工具 ----
     lightenColor(color, amount) {
         const rgb = this._parseColor(color);
         return `rgb(${Math.min(255, rgb.r + amount)},${Math.min(255, rgb.g + amount)},${Math.min(255, rgb.b + amount)})`;
@@ -1912,14 +1824,15 @@ class Enemy {
 }
 
 // ================================================================
-// 7. Game 类（完整游戏逻辑 + UI美化）
+// 7. Game 类（完整游戏逻辑 + UI美化 + 队列修复）
 // ================================================================
 class Game {
     constructor() {
         this.enemies = [];
         this.turrets = [];
         this.bullets = [];
-        this.particles = []; // 粒子系统
+        this.particles = [];
+        this.pendingEnemies = []; // ★★★ 待添加敌人队列，防止遍历时修改 ★★★
         this.gold = INIT_GOLD;
         this.lives = INIT_LIVES;
         this.wave = 0;
@@ -1943,7 +1856,6 @@ class Game {
         for (let i = 0; i < 26; i++) this.allWeaponList.push(i);
         g_gamePtr = this;
 
-        // 波次通知
         this.waveAnnouncement = 0;
         this.notificationText = '';
     }
@@ -2028,6 +1940,7 @@ class Game {
         this.turrets = [];
         this.bullets = [];
         this.particles = [];
+        this.pendingEnemies = [];
         this.ownedWeapons = [];
         this.gameOver = false;
         this.selectedTurretPtr = null;
@@ -2052,6 +1965,7 @@ class Game {
         this.turrets = [];
         this.bullets = [];
         this.particles = [];
+        this.pendingEnemies = [];
         this.ownedWeapons = [];
         this.gameState = 0;
         this.gameOver = false;
@@ -2395,7 +2309,6 @@ class Game {
         this.enemiesThisWave = baseCount + ((this.wave % 5 === 0) ? 1 : 0);
         this.enemiesSpawned = 0;
         this.spawnTimer = 0;
-        // 波次通知
         this.waveAnnouncement = 2.0;
         this.notificationText = `⚔️ 第 ${this.wave} 波`;
     }
@@ -2472,15 +2385,16 @@ class Game {
             this.gold -= cost; }
     }
 
+    // ============================================================
+    // ★★★ 核心修复：update 方法使用索引循环 + 待添加队列 ★★★
+    // ============================================================
     update(dt) {
         if (this.gameOver || this.gameState !== 2) return;
 
-        // 更新波次通知
-        if (this.waveAnnouncement > 0) {
-            this.waveAnnouncement -= dt;
-        }
+        // 清空待添加队列（本帧新敌人暂存于此）
+        this.pendingEnemies = [];
 
-        // 风灵塔 buff
+        // ---- 风灵塔 buff ----
         for (const t of this.turrets) {
             if (t.isDead || t.type !== TurretType.TT_WIND) continue;
             for (const other of this.turrets) {
@@ -2492,12 +2406,12 @@ class Game {
             }
         }
 
-        // 传送塔
+        // ---- 传送塔 ----
         for (const t of this.turrets) {
             if (!t.isDead && t.type === TurretType.TT_TELEPORT) t.teleportClosest(this.enemies);
         }
 
-        // 战争咆哮光环
+        // ---- 战争咆哮光环 ----
         for (const e of this.enemies) {
             if (!e.alive || !e.isWarCry) continue;
             for (const other of this.enemies) {
@@ -2511,7 +2425,7 @@ class Game {
             }
         }
 
-        // 炮塔冷却/复活
+        // ---- 炮塔冷却/复活 ----
         for (const t of this.turrets) {
             if (t.isDead) continue;
             if (t.soulReturnCD > 0) t.soulReturnCD -= dt;
@@ -2527,7 +2441,7 @@ class Game {
             }
         }
 
-        // 自动升级
+        // ---- 自动升级 ----
         if (this.autoUpgradeLevel > 0) {
             this.autoUpgradeTimer += dt;
             if (this.autoUpgradeTimer >= this.autoUpgradeInterval) {
@@ -2536,53 +2450,36 @@ class Game {
             }
         }
 
-        // 生成敌人
+        // ---- 波次生成（新敌人放入 pendingEnemies） ----
         if (this.enemiesSpawned < this.enemiesThisWave) {
             this.spawnTimer -= dt;
             if (this.spawnTimer <= 0) {
                 const type = this.getNextEnemyType(this.wave, this.enemiesSpawned, this.enemiesThisWave);
                 const e = new Enemy(this.wave, type);
-                this.enemies.push(e);
-                if (type === EnemyType.ET_SUMMONER) e.spawnMinions(this.wave, this.enemies);
+                this.pendingEnemies.push(e);
+                if (type === EnemyType.ET_SUMMONER) {
+                    // 召唤师生成小兵也放入队列
+                    e.spawnMinions(this.wave, this.pendingEnemies);
+                }
                 this.enemiesSpawned++;
                 this.spawnTimer = SPAWN_INTERVAL;
             }
         }
 
-        // 毒持续伤害
-        for (const e of this.enemies) {
+        // ---- ★ 使用索引循环遍历敌人，避免迭代时被修改 ----
+        for (let i = 0; i < this.enemies.length; i++) {
+            const e = this.enemies[i];
             if (!e.alive) continue;
-            if (e.poisonStacks > 0) {
-                const poisonDmg = e.poisonStacks * 5;
-                e.hp -= poisonDmg;
-                if (e.hp <= 0) {
-                    e.alive = false;
-                    this.spawnDeathParticles(e.pos.x, e.pos.y, '#44ff44');
-                    for (const other of this.enemies) {
-                        if (!other.alive || other === e) continue;
-                        if (distance(e.pos.x, e.pos.y, other.pos.x, other.pos.y) < 80) {
-                            other.armor = Math.floor(other.armor * 0.7);
-                        }
-                    }
-                }
-            }
-        }
 
-        // 更新敌人
-        for (const e of this.enemies) {
             e.update(dt);
             if (!e.alive && e.pathIndex >= g_path.length - 1) {
                 this.lives--;
                 if (this.lives <= 0) this.gameOver = true;
             }
-        }
-
-        // 敌人攻击炮塔
-        for (const e of this.enemies) {
             if (e.alive) e.attackTurret(this.turrets, dt);
         }
 
-        // 更新炮塔
+        // ---- 更新炮塔 ----
         for (const t of this.turrets) {
             if (!t.isDead) {
                 t.findTarget(this.enemies);
@@ -2591,12 +2488,12 @@ class Game {
             }
         }
 
-        // 治疗塔
+        // ---- 治疗塔 ----
         for (const t of this.turrets) {
             if (!t.isDead) t.healNearby(this.turrets, dt);
         }
 
-        // 更新子弹
+        // ---- 更新子弹 ----
         for (const b of this.bullets) {
             b.update(dt);
             if (!b.active && b.target && !b.target.alive) {
@@ -2604,21 +2501,29 @@ class Game {
             }
         }
 
-        // 更新粒子
+        // ---- 更新粒子 ----
         for (const p of this.particles) {
             p.update(dt);
         }
 
-        // 清理
+        // ---- 清理死亡对象 ----
         this.enemies = this.enemies.filter(e => e.alive);
         this.bullets = this.bullets.filter(b => b.active);
         this.particles = this.particles.filter(p => p.alive);
+
+        // ---- 清理死亡炮塔 ----
         for (const t of this.turrets) {
             if (t.isDead && this.selectedTurretPtr === t) this.selectedTurretPtr = null;
         }
         this.turrets = this.turrets.filter(t => !t.isDead);
 
-        // 下一波
+        // ---- 将待添加的敌人合并到主列表 ----
+        if (this.pendingEnemies.length > 0) {
+            this.enemies.push(...this.pendingEnemies);
+            this.pendingEnemies = [];
+        }
+
+        // ---- 下一波 ----
         if (this.enemiesSpawned >= this.enemiesThisWave && this.enemies.length === 0) {
             this.startWave();
         }
@@ -2751,9 +2656,7 @@ class Game {
         this.hoveredWeaponIndex = -1;
     }
 
-    // ============================================================
-    // 绘图（UI美化版）
-    // ============================================================
+    // ---- 绘图 ----
     draw(ctx) {
         ctx.clearRect(0, 0, WIN_WIDTH, WIN_HEIGHT);
         ctx.fillStyle = '#1a1a2e';
@@ -2774,26 +2677,21 @@ class Game {
             return;
         }
 
-        // ---- 绘制游戏背景 ----
         this.drawGameBackground(ctx);
 
-        // ---- 绘制游戏元素 ----
         for (const t of this.turrets) t.draw(ctx);
         for (const e of this.enemies) e.draw(ctx);
         for (const b of this.bullets) b.draw(ctx);
         for (const p of this.particles) p.draw(ctx);
 
-        // ---- 绘制UI ----
         this.drawGameUI(ctx);
 
-        // ---- 波次通知 ----
         if (this.waveAnnouncement > 0) {
             this.drawWaveAnnouncement(ctx);
         }
     }
 
     drawGameBackground(ctx) {
-        // 路径
         ctx.save();
         ctx.shadowColor = 'rgba(100,200,255,0.1)';
         ctx.shadowBlur = 15;
@@ -2806,8 +2704,6 @@ class Game {
         }
         ctx.stroke();
         ctx.shadowBlur = 0;
-
-        // 路径发光点
         for (const p of g_path) {
             ctx.fillStyle = 'rgba(100,200,255,0.15)';
             ctx.beginPath();
@@ -2816,7 +2712,6 @@ class Game {
         }
         ctx.restore();
 
-        // 起点/终点标记
         ctx.save();
         ctx.shadowColor = '#44ff44';
         ctx.shadowBlur = 20;
@@ -2835,7 +2730,6 @@ class Game {
     }
 
     drawGameUI(ctx) {
-        // ---- 顶部信息面板（毛玻璃效果） ----
         ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.4)';
         ctx.shadowBlur = 20;
@@ -2850,7 +2744,6 @@ class Game {
         ctx.roundRect(8, 8, 340, 72, 12);
         ctx.stroke();
 
-        // 信息文字
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 4;
         ctx.fillStyle = '#fff';
@@ -2885,7 +2778,6 @@ class Game {
         ctx.shadowBlur = 0;
         ctx.restore();
 
-        // ---- 右侧信息（自动升级等） ----
         ctx.save();
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.beginPath();
@@ -2898,7 +2790,6 @@ class Game {
         ctx.fillText(`自动升级 Lv.${this.autoUpgradeLevel}  [J↓ K↑]`, WIN_WIDTH - 220, 12);
         ctx.restore();
 
-        // ---- 底部炮塔按钮（美化版） ----
         const btnData = [
             ['普通', 50, TurretType.TT_NORMAL, '#4488cc'],
             ['狙击', 80, TurretType.TT_SNIPER, '#cc4444'],
@@ -2955,7 +2846,6 @@ class Game {
             ctx.restore();
         }
 
-        // ---- 右上角商店按钮 ----
         const btnX = WIN_WIDTH - 120,
             btnY = 10,
             btnW = 110,
@@ -2975,7 +2865,6 @@ class Game {
         ctx.fillText(this.showWeaponShop ? '▼ 收起商店' : '📦 装备商店', btnX + btnW / 2, btnY + btnH / 2);
         ctx.restore();
 
-        // ---- 商店列表 ----
         if (this.showWeaponShop) {
             const listX = WIN_WIDTH - 195,
                 listY = btnY + btnH + 4;
@@ -3029,7 +2918,6 @@ class Game {
         ctx.save();
         ctx.globalAlpha = Math.max(0, alpha);
 
-        // 背景
         ctx.shadowColor = 'rgba(255,215,0,0.4)';
         ctx.shadowBlur = 40;
         ctx.fillStyle = 'rgba(0,0,0,0.8)';
@@ -3038,7 +2926,6 @@ class Game {
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // 边框
         const grad = ctx.createLinearGradient(WIN_WIDTH / 2 - 160, y, WIN_WIDTH / 2 + 160, y);
         grad.addColorStop(0, 'rgba(255,215,0,0)');
         grad.addColorStop(0.3, 'rgba(255,215,0,0.5)');
@@ -3050,7 +2937,6 @@ class Game {
         ctx.roundRect(WIN_WIDTH / 2 - 160, y - 30, 320, 60, 16);
         ctx.stroke();
 
-        // 文字
         ctx.fillStyle = '#ffd700';
         ctx.font = 'bold 32px sans-serif';
         ctx.textAlign = 'center';
@@ -3064,7 +2950,6 @@ class Game {
     }
 
     drawMainMenu(ctx) {
-        // 背景
         const grad = ctx.createLinearGradient(0, 0, 0, WIN_HEIGHT);
         grad.addColorStop(0, '#16213e');
         grad.addColorStop(0.5, '#1a1a3e');
@@ -3072,7 +2957,6 @@ class Game {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, WIN_WIDTH, WIN_HEIGHT);
 
-        // 装饰粒子
         for (let i = 0; i < 30; i++) {
             const x = (i * 137 + 50) % WIN_WIDTH;
             const y = (i * 251 + 30) % WIN_HEIGHT;
@@ -3084,7 +2968,6 @@ class Game {
         }
 
         ctx.save();
-        // 标题
         ctx.shadowColor = 'rgba(255,215,0,0.3)';
         ctx.shadowBlur = 40;
         ctx.fillStyle = '#ffd700';
@@ -3094,12 +2977,10 @@ class Game {
         ctx.fillText('🏰 塔防游戏', WIN_WIDTH / 2, 40);
         ctx.shadowBlur = 0;
 
-        // 副标题
         ctx.fillStyle = 'rgba(255,255,255,0.4)';
         ctx.font = '16px sans-serif';
         ctx.fillText('视觉升级版 · 15种炮塔 · 26种装备', WIN_WIDTH / 2, 100);
 
-        // 难度选择
         const diffNames = ['🟢 简单', '🔵 普通', '🟡 困难', '🔴 地狱'];
         const diffColors = ['rgba(50,200,50,0.3)', 'rgba(50,150,255,0.3)', 'rgba(255,200,50,0.3)', 'rgba(255,50,50,0.3)'];
         const diffBorder = ['#44dd44', '#4488ff', '#ffcc44', '#ff4444'];
@@ -3133,7 +3014,6 @@ class Game {
             ctx.restore();
         }
 
-        // 开始按钮
         const bx = WIN_WIDTH / 2 - 60,
             by = 240,
             bw = 120,
@@ -3156,7 +3036,6 @@ class Game {
         ctx.fillText('开始游戏', WIN_WIDTH / 2, by + bh / 2);
         ctx.restore();
 
-        // 操作说明
         ctx.fillStyle = 'rgba(255,255,255,0.3)';
         ctx.font = '13px sans-serif';
         ctx.textAlign = 'left';
@@ -3241,7 +3120,6 @@ class Game {
             ctx.restore();
         }
 
-        // 确认按钮
         const bx = WIN_WIDTH / 2 - 60,
             by = 520,
             bw = 120,
@@ -3345,7 +3223,6 @@ function init() {
     requestAnimationFrame(gameLoop);
 }
 
-// ---- 事件处理 ----
 function handleClick(x, y) {
     if (game.gameState === 0) {
         for (let i = 0; i < 4; i++) {
@@ -3408,7 +3285,6 @@ function handleClick(x, y) {
     }
 
     if (game.gameState === 2) {
-        // 底部炮塔按钮
         const btnData = [
             ['普通', 50, TurretType.TT_NORMAL],
             ['狙击', 80, TurretType.TT_SNIPER],
@@ -3439,7 +3315,6 @@ function handleClick(x, y) {
             }
         }
 
-        // 右上角商店按钮
         const btnX = WIN_WIDTH - 120,
             btnY = 10,
             btnW = 110,
@@ -3449,7 +3324,6 @@ function handleClick(x, y) {
             return;
         }
 
-        // 商店点击购买
         if (game.showWeaponShop) {
             const listX = WIN_WIDTH - 195,
                 listY = btnY + btnH + 4;
