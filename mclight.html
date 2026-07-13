@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的世界·轻量版 (网页版)</title>
+    <title>我的世界·轻量版</title>
     <style>
         * {
             margin: 0;
@@ -55,21 +55,29 @@
             transition: all 0.2s;
             min-width: 60px;
         }
-        .btn:hover {
-            background: #6a6a6a;
+        .btn:hover:not(:disabled) {
             transform: scale(1.02);
         }
-        .btn:active {
+        .btn:active:not(:disabled) {
             transform: scale(0.95);
         }
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
         .btn-primary { background: #2d7d46; }
-        .btn-primary:hover { background: #3a9d5a; }
+        .btn-primary:hover:not(:disabled) { background: #3a9d5a; }
         .btn-danger { background: #8b2d2d; }
-        .btn-danger:hover { background: #b33a3a; }
+        .btn-danger:hover:not(:disabled) { background: #b33a3a; }
         .btn-gold { background: #b8860b; }
-        .btn-gold:hover { background: #d4a017; }
+        .btn-gold:hover:not(:disabled) { background: #d4a017; }
         .btn-craft { background: #2d5a7d; }
-        .btn-craft:hover { background: #3a7a9d; }
+        .btn-craft:hover:not(:disabled) { background: #3a7a9d; }
+        .btn-exit { background: #6c757d; }
+        .btn-exit:hover:not(:disabled) { background: #8a9299; }
+        .btn-apple { background: #d4524a; }
+        .btn-apple:hover:not(:disabled) { background: #e8655d; }
         #info-bar {
             margin-top: 10px;
             padding: 8px 12px;
@@ -107,6 +115,7 @@
             gap: 2px;
             flex-wrap: wrap;
             justify-content: center;
+            margin-top: 6px;
         }
         #message {
             margin-top: 8px;
@@ -119,6 +128,18 @@
             font-size: 14px;
             color: #856404;
         }
+        #recipe-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+            margin-top: 6px;
+        }
+        #recipe-buttons .btn {
+            font-size: 11px;
+            padding: 3px 8px;
+            min-width: auto;
+        }
         @media (max-width: 600px) {
             #game-container { padding: 10px; }
             .btn { padding: 6px 12px; font-size: 12px; min-width: 50px; }
@@ -130,10 +151,11 @@
 <body>
 
 <div id="game-container">
-    <canvas id="gameCanvas" width="860" height="520"></canvas>
+    <canvas id="gameCanvas" width="860" height="540"></canvas>
     
     <div id="info-bar">
         <span id="hp-display">❤️ 20/20</span>
+        <span id="hunger-display">🍖 饱食度: 10/10</span>
         <span id="exp-display">⭐ 0</span>
         <span id="lucky-display">🍀 0</span>
         <span id="weapon-display">⚔️ 木剑 (伤害:2, 暴击:5%)</span>
@@ -143,12 +165,15 @@
     <div id="hotbar-display"></div>
     
     <div id="controls">
-        <button class="btn btn-primary" onclick="doAction('chop')">🌲 砍树</button>
-        <button class="btn btn-craft" onclick="toggleCraft()">🔨 合成</button>
-        <button class="btn btn-gold" onclick="doAction('mine')">⛏️ 挖矿</button>
-        <button class="btn btn-danger" onclick="doAction('attack')">⚔️ 攻击</button>
+        <button class="btn btn-primary" id="btn-chop" onclick="doAction('chop')">🌲 砍树</button>
+        <button class="btn btn-craft" id="btn-craft" onclick="toggleCraft()">🔨 合成</button>
+        <button class="btn btn-gold" id="btn-mine" onclick="doAction('mine')">⛏️ 挖矿</button>
+        <button class="btn btn-danger" id="btn-attack" onclick="doAction('attack')">⚔️ 攻击</button>
+        <button class="btn btn-apple" id="btn-eat" onclick="eatApple()">🍎 吃苹果</button>
         <button class="btn" onclick="resetGame()">🔄 重置</button>
     </div>
+    
+    <div id="recipe-buttons"></div>
     
     <div id="message">按 砍树 开始采集资源，合成工具和武器</div>
 </div>
@@ -192,6 +217,10 @@ let maxHP = 20;
 let expPoints = 0;
 let currentDamage = 1;
 let criticalChance = 0.0;
+
+// 饱食度 (0~10)
+let hunger = 10;
+const MAX_HUNGER = 10;
 
 // 游戏状态
 let state = 'idle'; // idle, chopping, mining, crafting, fighting
@@ -278,7 +307,6 @@ function doCraft(index) {
     consumeMaterials(r.costs);
     inventory[r.result] += r.count;
     
-    // 更新工具/武器等级
     if (r.result === ITEM_IDS.WOODEN_PICKAXE) pickaxeLevel = Math.max(pickaxeLevel, 1);
     else if (r.result === ITEM_IDS.STONE_PICKAXE) pickaxeLevel = Math.max(pickaxeLevel, 2);
     else if (r.result === ITEM_IDS.IRON_PICKAXE) pickaxeLevel = Math.max(pickaxeLevel, 4);
@@ -352,11 +380,45 @@ function attackMonster() {
 }
 
 // ============================================================
-// 动作函数 (由按钮调用)
+// 吃苹果 + 饱食度系统
+// ============================================================
+function eatApple() {
+    if (state !== 'idle') {
+        setMessage('⚠️ 当前状态无法吃东西！');
+        return;
+    }
+    if (inventory[ITEM_IDS.APPLE] <= 0) {
+        setMessage('❌ 没有苹果！');
+        return;
+    }
+    inventory[ITEM_IDS.APPLE]--;
+    hunger += 3;
+    if (hunger > MAX_HUNGER) hunger = MAX_HUNGER;
+    let msg = `🍎 吃了苹果，饱食度 +3 (${hunger}/${MAX_HUNGER})`;
+    // 检查是否满饱食度
+    if (hunger === MAX_HUNGER) {
+        // 回血
+        let heal = 2;
+        playerHP = Math.min(maxHP, playerHP + heal);
+        hunger = 0; // 清空饱食度
+        msg += `，❤️ 回血 ${heal} 点！`;
+    }
+    setMessage(msg);
+    render();
+}
+
+// ============================================================
+// 动作函数
 // ============================================================
 let progressInterval = null;
 
 function doAction(action) {
+    // 合成状态下禁止所有操作
+    if (state === 'crafting') {
+        setMessage('⚠️ 请先退出合成台再操作！');
+        return;
+    }
+
     if (state === 'fighting') {
         if (action === 'attack') {
             if (swordLevel === 0) {
@@ -459,8 +521,8 @@ function startProgress(type) {
         progress += increment;
         if (progress >= 100) progress = 100;
         
-        // 遭遇怪物 (10%概率)
-        if (progress < 100 && Math.random() * 100 < 10) {
+        // 遭遇怪物 (概率 3%)
+        if (progress < 100 && Math.random() * 100 < 3) {
             spawnMonster();
             state = 'fighting';
             clearInterval(progressInterval);
@@ -492,11 +554,15 @@ function toggleCraft() {
         setMessage('⚠️ 战斗中不能合成！');
         return;
     }
+    if (state === 'chopping' || state === 'mining') {
+        setMessage('⚠️ 正在工作中，不能合成！');
+        return;
+    }
     craftingVisible = !craftingVisible;
     if (craftingVisible) {
         state = 'crafting';
         selectedRecipe = -1;
-        setMessage('🔨 选择合成配方');
+        setMessage('🔨 选择合成配方，点击"返回"退出');
     } else {
         state = 'idle';
         selectedRecipe = -1;
@@ -511,7 +577,6 @@ function selectRecipe(index) {
     selectedRecipe = index;
     if (doCraft(index)) {
         setMessage(`✅ 合成 ${recipes[index].name} 成功！`);
-        // 继续留在合成界面
     } else {
         setMessage(`❌ 材料不足！无法合成 ${recipes[index].name}`);
     }
@@ -519,7 +584,7 @@ function selectRecipe(index) {
 }
 
 // ============================================================
-// 渲染引擎 (Canvas)
+// 渲染引擎
 // ============================================================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -528,7 +593,6 @@ function render() {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     
-    // 背景
     ctx.fillStyle = '#f0f0f0';
     ctx.fillRect(0, 0, W, H);
     
@@ -541,7 +605,7 @@ function render() {
     // 状态行
     ctx.fillStyle = '#2d2d2d';
     ctx.font = 'bold 14px Consolas, "微软雅黑", monospace';
-    ctx.fillText(`❤️ ${playerHP}/${maxHP}  ⭐ ${expPoints}  🍀 ${luckyBonus}  ⚔️ ${getWeaponName()} (伤害:${currentDamage}, 暴击:${Math.round(criticalChance*100)}%)`, leftX, y);
+    ctx.fillText(`❤️ ${playerHP}/${maxHP}  🍖 ${hunger}/${MAX_HUNGER}  ⭐ ${expPoints}  🍀 ${luckyBonus}  ⚔️ ${getWeaponName()} (伤害:${currentDamage}, 暴击:${Math.round(criticalChance*100)}%)`, leftX, y);
     y += 26;
     ctx.font = '13px Consolas, "微软雅黑", monospace';
     ctx.fillStyle = '#555';
@@ -578,14 +642,13 @@ function render() {
     if (state === 'idle' && !craftingVisible) {
         ctx.fillStyle = '#444';
         ctx.font = '14px Consolas, "微软雅黑", monospace';
-        ctx.fillText('🌲 砍树 (需斧头)  |  🔨 合成  |  ⛏️ 挖矿 (需镐)  |  ⚔️ 攻击 (需剑)', leftX, y);
+        ctx.fillText('🌲 砍树 (需斧头)  |  🔨 合成  |  ⛏️ 挖矿 (需镐)  |  ⚔️ 攻击 (需剑)  |  🍎 吃苹果', leftX, y);
         y += 30;
     } else if (state === 'chopping' || state === 'mining') {
         const action = state === 'chopping' ? '砍树中' : '挖矿中';
         ctx.fillStyle = '#0066cc';
         ctx.font = 'bold 16px Consolas, "微软雅黑", monospace';
         ctx.fillText(`${action} ... ${progress}%`, leftX, y);
-        // 进度条
         const barW = 300, barH = 20;
         const bx = leftX, by = y + 28;
         ctx.fillStyle = '#fff';
@@ -659,36 +722,22 @@ function render() {
         }
         y = gridY + 3 * cellH + 20;
         
-        // 配方列表
-        ctx.fillStyle = '#333';
-        ctx.font = '13px Consolas, "微软雅黑", monospace';
-        ctx.fillText('选择配方 (点击下方按钮):', leftX, y);
-        y += 22;
-        let recipeButtons = '';
-        for (let i = 0; i < Math.min(recipes.length, 10); i++) {
-            const r = recipes[i];
-            const has = hasEnough(r.costs) ? '✅' : '❌';
-            ctx.fillStyle = '#333';
-            ctx.font = '12px Consolas, "微软雅黑", monospace';
-            ctx.fillText(`${i+1}. ${r.name} ${has}`, leftX + (i % 5) * 150, y + Math.floor(i / 5) * 22);
-        }
-        y += Math.ceil(Math.min(recipes.length, 10) / 5) * 22 + 10;
+        // 配方列表（已移至按钮区域）
         ctx.fillStyle = '#888';
         ctx.font = '12px Consolas, "微软雅黑", monospace';
-        ctx.fillText('点击下方数字按钮选择配方', leftX, y);
+        ctx.fillText('点击下方配方按钮合成，点击"返回"退出', leftX, y);
     }
-    
-    // 消息区
-    const msgEl = document.getElementById('message');
-    // 消息通过DOM更新
     
     // 更新信息栏
     updateInfoBar();
     updateHotbarDisplay();
+    updateButtons();
+    updateRecipeButtons();
 }
 
 function updateInfoBar() {
     document.getElementById('hp-display').textContent = `❤️ ${playerHP}/${maxHP}`;
+    document.getElementById('hunger-display').textContent = `🍖 饱食度: ${hunger}/${MAX_HUNGER}`;
     document.getElementById('exp-display').textContent = `⭐ ${expPoints}`;
     document.getElementById('lucky-display').textContent = `🍀 ${luckyBonus}`;
     document.getElementById('weapon-display').textContent = `⚔️ ${getWeaponName()} (伤害:${currentDamage}, 暴击:${Math.round(criticalChance*100)}%)`;
@@ -702,6 +751,44 @@ function updateHotbarDisplay() {
         html += `<span class="hotbar-slot">${hotbar[i] || '空'}</span>`;
     }
     container.innerHTML = html;
+}
+
+function updateButtons() {
+    // 合成状态下禁用所有操作按钮（除了合成和重置）
+    const isCrafting = (state === 'crafting' || craftingVisible);
+    document.getElementById('btn-chop').disabled = isCrafting;
+    document.getElementById('btn-mine').disabled = isCrafting;
+    document.getElementById('btn-attack').disabled = isCrafting;
+    document.getElementById('btn-eat').disabled = isCrafting;
+    // 合成按钮本身不禁用，但点击会切换
+}
+
+function updateRecipeButtons() {
+    const container = document.getElementById('recipe-buttons');
+    if (!craftingVisible) {
+        container.innerHTML = '';
+        return;
+    }
+    let html = '';
+    // 添加返回按钮
+    html += `<button class="btn btn-exit" onclick="exitCraft()">🔙 返回</button>`;
+    // 配方按钮
+    for (let i = 0; i < recipes.length; i++) {
+        const r = recipes[i];
+        const has = hasEnough(r.costs);
+        html += `<button class="btn" style="font-size:11px;padding:3px 8px;background:${has?'#2d7d46':'#888'};" 
+                        onclick="selectRecipe(${i})">${i+1}. ${r.name}</button>`;
+    }
+    container.innerHTML = html;
+}
+
+function exitCraft() {
+    if (craftingVisible) {
+        craftingVisible = false;
+        state = 'idle';
+        setMessage('已退出合成');
+        render();
+    }
 }
 
 function setMessage(msg) {
@@ -739,17 +826,15 @@ document.addEventListener('keydown', (e) => {
     else if (key === ' ' || key === '5') {
         e.preventDefault();
         doAction('attack');
-    } else if (key >= '4' && key <= '9') {
-        const idx = parseInt(key) - 4;
+    } else if (key === '4') eatApple(); // 新增：4键吃苹果
+    else if (key >= '6' && key <= '9') { // 配方选择改为6-9，但也可以保留4-9，但4被吃苹果占用，所以调整
+        const idx = parseInt(key) - 6;
         if (craftingVisible && idx < recipes.length) {
             selectRecipe(idx);
         }
     } else if (key === 'Escape') {
         if (craftingVisible) {
-            craftingVisible = false;
-            state = 'idle';
-            setMessage('已退出合成');
-            render();
+            exitCraft();
         }
     }
 });
@@ -769,6 +854,7 @@ function resetGame() {
     playerHP = 20;
     maxHP = 20;
     expPoints = 0;
+    hunger = 10;
     state = 'idle';
     progress = 0;
     selectedRecipe = -1;
@@ -776,7 +862,6 @@ function resetGame() {
     monsterHP = 0;
     monsterMaxHP = 0;
     monsterName = '';
-    // 初始物品
     inventory[ITEM_IDS.OAK] = 5;
     inventory[ITEM_IDS.OAK_WOOD] = 10;
     inventory[ITEM_IDS.STICK] = 5;
@@ -786,6 +871,7 @@ function resetGame() {
     swordLevel = 1;
     inventory[ITEM_IDS.WOODEN_AXE] = 1;
     axeLevel = 1;
+    inventory[ITEM_IDS.APPLE] = 3; // 初始给几个苹果
     addToHotbar(ITEM_IDS.WOODEN_SWORD);
     addToHotbar(ITEM_IDS.WOODEN_AXE);
     updateWeaponStats();
@@ -798,49 +884,13 @@ function resetGame() {
 // ============================================================
 resetGame();
 
-// 添加配方选择按钮（在控件区动态生成）
-const controlsDiv = document.getElementById('controls');
-const recipeBtnsDiv = document.createElement('div');
-recipeBtnsDiv.id = 'recipe-buttons';
-recipeBtnsDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;';
-controlsDiv.parentNode.insertBefore(recipeBtnsDiv, controlsDiv.nextSibling);
+// 由于配方选择键改为6-9，我们在界面上也调整提示，但合成按钮区域已有数字显示
+// 为了不冲突，我们把吃苹果设为4键，配方选择为6-9（因为配方很多，但只显示前几个，我们保留按钮点击方式）
 
-function updateRecipeButtons() {
-    const container = document.getElementById('recipe-buttons');
-    if (!craftingVisible) {
-        container.innerHTML = '';
-        return;
-    }
-    let html = '<span style="font-size:12px;color:#555;margin-right:6px;">配方:</span>';
-    for (let i = 0; i < recipes.length; i++) {
-        const r = recipes[i];
-        const has = hasEnough(r.costs);
-        html += `<button class="btn" style="font-size:11px;padding:3px 8px;background:${has?'#2d7d46':'#888'};" 
-                        onclick="selectRecipe(${i})">${i+1}. ${r.name}</button>`;
-    }
-    container.innerHTML = html;
-}
-
-// 重写render以更新配方按钮
-const originalRender = render;
-render = function() {
-    originalRender();
-    updateRecipeButtons();
-};
-
-// 启动循环
-setInterval(() => {
-    // 自动刷新
-    if (state === 'idle' || state === 'fighting') {
-        // 不频繁刷新
-    }
-}, 100);
-
-// 初始渲染
+// 额外渲染一次
 render();
-
-console.log('🎮 我的世界·轻量版 已加载！');
-console.log('按键: 1=砍树 2=合成 3=挖矿 空格/5=攻击 4-9=选择配方 ESC=退出合成');
+console.log('🎮 我的世界·轻量版 已更新！');
+console.log('按键: 1=砍树 2=合成 3=挖矿 空格/5=攻击 4=吃苹果 6-9=选择配方(合成时) ESC=退出合成');
 </script>
 </body>
 </html>
