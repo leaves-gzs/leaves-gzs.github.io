@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的世界·轻量版 (网页版)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #2d2d2d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Consolas', '微软雅黑', monospace;
+            user-select: none;
+        }
+        #game-container {
+            background: #f0f0f0;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            max-width: 900px;
+            width: 100%;
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background: #f0f0f0;
+            cursor: default;
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+        }
+        #controls {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .btn {
+            padding: 8px 16px;
+            background: #4a4a4a;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 60px;
+        }
+        .btn:hover {
+            background: #6a6a6a;
+            transform: scale(1.02);
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn-primary { background: #2d7d46; }
+        .btn-primary:hover { background: #3a9d5a; }
+        .btn-danger { background: #8b2d2d; }
+        .btn-danger:hover { background: #b33a3a; }
+        .btn-gold { background: #b8860b; }
+        .btn-gold:hover { background: #d4a017; }
+        .btn-craft { background: #2d5a7d; }
+        .btn-craft:hover { background: #3a7a9d; }
+        #info-bar {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #e8e8e8;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #333;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+        #info-bar span {
+            background: white;
+            padding: 2px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .hotbar-slot {
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+            background: white;
+            border: 1px solid #999;
+            text-align: center;
+            line-height: 30px;
+            font-size: 11px;
+            margin: 0 2px;
+            border-radius: 3px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        #hotbar-display {
+            display: flex;
+            gap: 2px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #message {
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            text-align: center;
+            min-height: 32px;
+            font-size: 14px;
+            color: #856404;
+        }
+        @media (max-width: 600px) {
+            #game-container { padding: 10px; }
+            .btn { padding: 6px 12px; font-size: 12px; min-width: 50px; }
+            #info-bar { font-size: 11px; gap: 6px; }
+            .hotbar-slot { width: 45px; height: 24px; line-height: 24px; font-size: 9px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="860" height="520"></canvas>
+    
+    <div id="info-bar">
+        <span id="hp-display">❤️ 20/20</span>
+        <span id="exp-display">⭐ 0</span>
+        <span id="lucky-display">🍀 0</span>
+        <span id="weapon-display">⚔️ 木剑 (伤害:2, 暴击:5%)</span>
+        <span id="tool-display">🪓 木斧 (砍树速度:4)</span>
+    </div>
+    
+    <div id="hotbar-display"></div>
+    
+    <div id="controls">
+        <button class="btn btn-primary" onclick="doAction('chop')">🌲 砍树</button>
+        <button class="btn btn-craft" onclick="toggleCraft()">🔨 合成</button>
+        <button class="btn btn-gold" onclick="doAction('mine')">⛏️ 挖矿</button>
+        <button class="btn btn-danger" onclick="doAction('attack')">⚔️ 攻击</button>
+        <button class="btn" onclick="resetGame()">🔄 重置</button>
+    </div>
+    
+    <div id="message">按 砍树 开始采集资源，合成工具和武器</div>
+</div>
+
+<script>
+// ============================================================
+// 游戏数据
+// ============================================================
+const ITEM_NAMES = {
+    OAK: '橡木原木', OAK_WOOD: '木板', STICK: '木棍', APPLE: '苹果',
+    STONE: '石头', COBBLESTONE: '圆石', COAL: '煤炭', IRON_INGOT: '铁锭',
+    GOLD_INGOT: '金锭', DIAMOND: '钻石',
+    WOODEN_PICKAXE: '木镐', STONE_PICKAXE: '石镐', IRON_PICKAXE: '铁镐', GOLDEN_PICKAXE: '金镐',
+    WOODEN_AXE: '木斧', STONE_AXE: '石斧', IRON_AXE: '铁斧', GOLDEN_AXE: '金斧', DIAMOND_AXE: '钻石斧',
+    WOODEN_SWORD: '木剑', STONE_SWORD: '石剑', IRON_SWORD: '铁剑', GOLDEN_SWORD: '金剑', DIAMOND_SWORD: '钻石剑',
+    ROTTEN_FLESH: '腐肉'
+};
+
+const ITEM_IDS = {
+    OAK: 0, OAK_WOOD: 1, STICK: 2, APPLE: 3,
+    STONE: 4, COBBLESTONE: 5, COAL: 6, IRON_INGOT: 7,
+    GOLD_INGOT: 8, DIAMOND: 9,
+    WOODEN_PICKAXE: 10, STONE_PICKAXE: 11, IRON_PICKAXE: 12, GOLDEN_PICKAXE: 13,
+    WOODEN_AXE: 14, STONE_AXE: 15, IRON_AXE: 16, GOLDEN_AXE: 17, DIAMOND_AXE: 18,
+    WOODEN_SWORD: 19, STONE_SWORD: 20, IRON_SWORD: 21, GOLDEN_SWORD: 22, DIAMOND_SWORD: 23,
+    ROTTEN_FLESH: 24
+};
+
+const TOTAL_ITEMS = 25;
+let inventory = new Array(TOTAL_ITEMS).fill(0);
+let hotbar = [];
+let hotbarIndex = 0;
+
+// 工具/武器等级
+let pickaxeLevel = 0;   // 0无,1木,2石,3金,4铁
+let axeLevel = 0;       // 0无,1木,2石,3金,4铁,5钻石
+let swordLevel = 0;     // 0无,1木,2石,3金,4铁,5钻石
+let luckyBonus = 0;
+let playerHP = 20;
+let maxHP = 20;
+let expPoints = 0;
+let currentDamage = 1;
+let criticalChance = 0.0;
+
+// 游戏状态
+let state = 'idle'; // idle, chopping, mining, crafting, fighting
+let progress = 0;
+let selectedRecipe = -1;
+let craftSuccess = false;
+
+// 怪物数据
+let monsterHP = 0;
+let monsterMaxHP = 0;
+let monsterName = '';
+
+// 合成配方
+const recipes = [
+    { result: ITEM_IDS.OAK_WOOD, count: 4, costs: [[ITEM_IDS.OAK, 1]], name: '木板' },
+    { result: ITEM_IDS.STICK, count: 4, costs: [[ITEM_IDS.OAK_WOOD, 2]], name: '木棍' },
+    { result: ITEM_IDS.WOODEN_PICKAXE, count: 1, costs: [[ITEM_IDS.OAK_WOOD, 3], [ITEM_IDS.STICK, 2]], name: '木镐' },
+    { result: ITEM_IDS.STONE_PICKAXE, count: 1, costs: [[ITEM_IDS.COBBLESTONE, 3], [ITEM_IDS.STICK, 2]], name: '石镐' },
+    { result: ITEM_IDS.IRON_PICKAXE, count: 1, costs: [[ITEM_IDS.IRON_INGOT, 3], [ITEM_IDS.STICK, 2]], name: '铁镐' },
+    { result: ITEM_IDS.GOLDEN_PICKAXE, count: 1, costs: [[ITEM_IDS.GOLD_INGOT, 3], [ITEM_IDS.STICK, 2]], name: '金镐' },
+    { result: ITEM_IDS.WOODEN_AXE, count: 1, costs: [[ITEM_IDS.OAK_WOOD, 3], [ITEM_IDS.STICK, 2]], name: '木斧' },
+    { result: ITEM_IDS.STONE_AXE, count: 1, costs: [[ITEM_IDS.COBBLESTONE, 3], [ITEM_IDS.STICK, 2]], name: '石斧' },
+    { result: ITEM_IDS.IRON_AXE, count: 1, costs: [[ITEM_IDS.IRON_INGOT, 3], [ITEM_IDS.STICK, 2]], name: '铁斧' },
+    { result: ITEM_IDS.GOLDEN_AXE, count: 1, costs: [[ITEM_IDS.GOLD_INGOT, 3], [ITEM_IDS.STICK, 2]], name: '金斧' },
+    { result: ITEM_IDS.DIAMOND_AXE, count: 1, costs: [[ITEM_IDS.DIAMOND, 3], [ITEM_IDS.STICK, 2]], name: '钻石斧' },
+    { result: ITEM_IDS.WOODEN_SWORD, count: 1, costs: [[ITEM_IDS.OAK_WOOD, 2], [ITEM_IDS.STICK, 1]], name: '木剑' },
+    { result: ITEM_IDS.STONE_SWORD, count: 1, costs: [[ITEM_IDS.COBBLESTONE, 2], [ITEM_IDS.STICK, 1]], name: '石剑' },
+    { result: ITEM_IDS.IRON_SWORD, count: 1, costs: [[ITEM_IDS.IRON_INGOT, 2], [ITEM_IDS.STICK, 1]], name: '铁剑' },
+    { result: ITEM_IDS.GOLDEN_SWORD, count: 1, costs: [[ITEM_IDS.GOLD_INGOT, 2], [ITEM_IDS.STICK, 1]], name: '金剑' },
+    { result: ITEM_IDS.DIAMOND_SWORD, count: 1, costs: [[ITEM_IDS.DIAMOND, 2], [ITEM_IDS.STICK, 1]], name: '钻石剑' }
+];
+
+// ============================================================
+// 核心游戏逻辑
+// ============================================================
+function getItemName(id) {
+    const names = [
+        '橡木原木', '木板', '木棍', '苹果',
+        '石头', '圆石', '煤炭', '铁锭',
+        '金锭', '钻石',
+        '木镐', '石镐', '铁镐', '金镐',
+        '木斧', '石斧', '铁斧', '金斧', '钻石斧',
+        '木剑', '石剑', '铁剑', '金剑', '钻石剑',
+        '腐肉'
+    ];
+    return names[id] || '未知';
+}
+
+function hasEnough(costs) {
+    for (let c of costs) {
+        if (inventory[c[0]] < c[1]) return false;
+    }
+    return true;
+}
+
+function consumeMaterials(costs) {
+    for (let c of costs) {
+        inventory[c[0]] -= c[1];
+    }
+}
+
+function addToHotbar(itemID) {
+    if (hotbarIndex < 10) {
+        hotbar[hotbarIndex++] = '  ' + getItemName(itemID) + '  ';
+    }
+}
+
+function updateWeaponStats() {
+    switch (swordLevel) {
+        case 0: currentDamage = 1; criticalChance = 0.0; break;
+        case 1: currentDamage = 2; criticalChance = 0.05; break;
+        case 2: currentDamage = 3; criticalChance = 0.10; break;
+        case 3: currentDamage = 4; criticalChance = 0.25; break;
+        case 4: currentDamage = 5; criticalChance = 0.15; break;
+        case 5: currentDamage = 7; criticalChance = 0.20; break;
+        default: currentDamage = 1; criticalChance = 0.0;
+    }
+}
+
+function doCraft(index) {
+    if (index < 0 || index >= recipes.length) return false;
+    const r = recipes[index];
+    if (!hasEnough(r.costs)) return false;
+    consumeMaterials(r.costs);
+    inventory[r.result] += r.count;
+    
+    // 更新工具/武器等级
+    if (r.result === ITEM_IDS.WOODEN_PICKAXE) pickaxeLevel = Math.max(pickaxeLevel, 1);
+    else if (r.result === ITEM_IDS.STONE_PICKAXE) pickaxeLevel = Math.max(pickaxeLevel, 2);
+    else if (r.result === ITEM_IDS.IRON_PICKAXE) pickaxeLevel = Math.max(pickaxeLevel, 4);
+    else if (r.result === ITEM_IDS.GOLDEN_PICKAXE) { pickaxeLevel = Math.max(pickaxeLevel, 3); luckyBonus++; }
+    else if (r.result === ITEM_IDS.WOODEN_AXE) axeLevel = Math.max(axeLevel, 1);
+    else if (r.result === ITEM_IDS.STONE_AXE) axeLevel = Math.max(axeLevel, 2);
+    else if (r.result === ITEM_IDS.IRON_AXE) axeLevel = Math.max(axeLevel, 4);
+    else if (r.result === ITEM_IDS.GOLDEN_AXE) { axeLevel = Math.max(axeLevel, 3); luckyBonus++; }
+    else if (r.result === ITEM_IDS.DIAMOND_AXE) axeLevel = Math.max(axeLevel, 5);
+    else if (r.result === ITEM_IDS.WOODEN_SWORD) { swordLevel = Math.max(swordLevel, 1); addToHotbar(ITEM_IDS.WOODEN_SWORD); }
+    else if (r.result === ITEM_IDS.STONE_SWORD) { swordLevel = Math.max(swordLevel, 2); addToHotbar(ITEM_IDS.STONE_SWORD); }
+    else if (r.result === ITEM_IDS.IRON_SWORD) { swordLevel = Math.max(swordLevel, 4); addToHotbar(ITEM_IDS.IRON_SWORD); }
+    else if (r.result === ITEM_IDS.GOLDEN_SWORD) { swordLevel = Math.max(swordLevel, 3); addToHotbar(ITEM_IDS.GOLDEN_SWORD); }
+    else if (r.result === ITEM_IDS.DIAMOND_SWORD) { swordLevel = Math.max(swordLevel, 5); addToHotbar(ITEM_IDS.DIAMOND_SWORD); }
+    else {
+        addToHotbar(r.result);
+    }
+    updateWeaponStats();
+    return true;
+}
+
+function chopTreeImmediate() {
+    inventory[ITEM_IDS.OAK]++;
+    let extraChance = luckyBonus * 2;
+    if (Math.random() * 100 < 5 + extraChance) inventory[ITEM_IDS.APPLE]++;
+    if (Math.random() * 100 < 5 + extraChance) inventory[ITEM_IDS.STICK]++;
+}
+
+function mineImmediate() {
+    let result = Math.floor(Math.random() * 100) + 1;
+    let threshold = 50 - luckyBonus;
+    let itemID = -1;
+    if (result <= threshold) itemID = ITEM_IDS.COBBLESTONE;
+    else if (result >= 70) itemID = ITEM_IDS.COAL;
+    else if (result >= 60 - luckyBonus) itemID = ITEM_IDS.IRON_INGOT;
+    else if (result >= 55 - luckyBonus) itemID = ITEM_IDS.GOLD_INGOT;
+    else if (result >= 51) itemID = -1;
+    else itemID = ITEM_IDS.DIAMOND;
+    if (itemID !== -1) inventory[itemID]++;
+}
+
+function spawnMonster() {
+    let type = Math.floor(Math.random() * 3);
+    switch (type) {
+        case 0: monsterName = '僵尸'; monsterMaxHP = 8; break;
+        case 1: monsterName = '骷髅'; monsterMaxHP = 6; break;
+        case 2: monsterName = '蜘蛛'; monsterMaxHP = 10; break;
+        default: monsterName = '怪物'; monsterMaxHP = 8;
+    }
+    monsterHP = monsterMaxHP;
+}
+
+function attackMonster() {
+    let damage = currentDamage;
+    let critical = false;
+    if (Math.random() * 100 < criticalChance * 100) {
+        damage *= 2;
+        critical = true;
+    }
+    monsterHP -= damage;
+    if (monsterHP <= 0) {
+        monsterHP = 0;
+        inventory[ITEM_IDS.ROTTEN_FLESH] += 1 + Math.floor(Math.random() * 2);
+        expPoints += 2;
+        return true;
+    }
+    // 怪物反击
+    playerHP -= 2 + Math.floor(Math.random() * 3);
+    if (playerHP < 0) playerHP = 0;
+    return false;
+}
+
+// ============================================================
+// 动作函数 (由按钮调用)
+// ============================================================
+let progressInterval = null;
+
+function doAction(action) {
+    if (state === 'fighting') {
+        if (action === 'attack') {
+            if (swordLevel === 0) {
+                setMessage('⚠️ 你没有剑！空手攻击伤害极低！');
+                let dmg = 1;
+                monsterHP -= dmg;
+                if (monsterHP <= 0) {
+                    inventory[ITEM_IDS.ROTTEN_FLESH] += 1;
+                    state = 'idle';
+                    progress = 0;
+                    setMessage('💀 击败怪物！获得腐肉！');
+                } else {
+                    playerHP -= 2;
+                    if (playerHP <= 0) {
+                        playerHP = 0;
+                        state = 'idle';
+                        progress = 0;
+                        setMessage('💀 你被怪物击败了！');
+                    } else {
+                        setMessage(`💥 造成 ${dmg} 点伤害！怪物剩余 ${monsterHP} HP`);
+                    }
+                }
+                render();
+                return;
+            }
+            let killed = attackMonster();
+            if (killed) {
+                state = 'idle';
+                progress = 0;
+                setMessage(`🎉 击败 ${monsterName}！获得腐肉！`);
+            } else {
+                if (playerHP <= 0) {
+                    state = 'idle';
+                    progress = 0;
+                    setMessage('💀 你被怪物击败了！');
+                } else {
+                    setMessage(`💥 攻击成功！怪物剩余 ${monsterHP} HP，你剩余 ${playerHP} HP`);
+                }
+            }
+            render();
+        }
+        return;
+    }
+    
+    if (state !== 'idle') return;
+    
+    if (action === 'chop') {
+        state = 'chopping';
+        progress = 0;
+        setMessage('🌲 砍树中...');
+        startProgress('chop');
+    } else if (action === 'mine') {
+        if (pickaxeLevel === 0) {
+            setMessage('⚠️ 你需要先合成一把镐！');
+            return;
+        }
+        state = 'mining';
+        progress = 0;
+        setMessage('⛏️ 挖矿中...');
+        startProgress('mine');
+    } else if (action === 'attack') {
+        if (state === 'fighting') {
+            // 已在上面处理
+        } else {
+            setMessage('⚠️ 没有怪物可攻击！');
+        }
+    }
+    render();
+}
+
+function startProgress(type) {
+    if (progressInterval) clearInterval(progressInterval);
+    progressInterval = setInterval(() => {
+        if (state !== 'chopping' && state !== 'mining') {
+            clearInterval(progressInterval);
+            return;
+        }
+        let increment = 2;
+        if (type === 'chop') {
+            switch (axeLevel) {
+                case 0: increment = 2; break;
+                case 1: increment = 4; break;
+                case 2: increment = 6; break;
+                case 3: increment = 8; break;
+                case 4: increment = 10; break;
+                case 5: increment = 14; break;
+                default: increment = 2;
+            }
+        } else {
+            switch (pickaxeLevel) {
+                case 0: increment = 2; break;
+                case 1: increment = 3; break;
+                case 2: increment = 5; break;
+                case 3: increment = 7; break;
+                case 4: increment = 9; break;
+                default: increment = 2;
+            }
+        }
+        increment += Math.floor(Math.random() * 3);
+        progress += increment;
+        if (progress >= 100) progress = 100;
+        
+        // 遭遇怪物 (10%概率)
+        if (progress < 100 && Math.random() * 100 < 10) {
+            spawnMonster();
+            state = 'fighting';
+            clearInterval(progressInterval);
+            setMessage(`⚠️ 遭遇 ${monsterName}！ 按"攻击"按钮战斗！`);
+            render();
+            return;
+        }
+        
+        if (progress >= 100) {
+            clearInterval(progressInterval);
+            if (type === 'chop') chopTreeImmediate();
+            else mineImmediate();
+            state = 'idle';
+            progress = 0;
+            setMessage(type === 'chop' ? '✅ 砍树完成！获得木头！' : '✅ 挖矿完成！');
+            render();
+        }
+        render();
+    }, 80);
+}
+
+// ============================================================
+// 合成系统
+// ============================================================
+let craftingVisible = false;
+
+function toggleCraft() {
+    if (state === 'fighting') {
+        setMessage('⚠️ 战斗中不能合成！');
+        return;
+    }
+    craftingVisible = !craftingVisible;
+    if (craftingVisible) {
+        state = 'crafting';
+        selectedRecipe = -1;
+        setMessage('🔨 选择合成配方');
+    } else {
+        state = 'idle';
+        selectedRecipe = -1;
+        setMessage('已退出合成');
+    }
+    render();
+}
+
+function selectRecipe(index) {
+    if (!craftingVisible || state !== 'crafting') return;
+    if (index < 0 || index >= recipes.length) return;
+    selectedRecipe = index;
+    if (doCraft(index)) {
+        setMessage(`✅ 合成 ${recipes[index].name} 成功！`);
+        // 继续留在合成界面
+    } else {
+        setMessage(`❌ 材料不足！无法合成 ${recipes[index].name}`);
+    }
+    render();
+}
+
+// ============================================================
+// 渲染引擎 (Canvas)
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function render() {
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    
+    // 背景
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, 0, W, H);
+    
+    ctx.font = '15px Consolas, "微软雅黑", monospace';
+    ctx.fillStyle = '#333';
+    
+    let y = 18;
+    const leftX = 20;
+    
+    // 状态行
+    ctx.fillStyle = '#2d2d2d';
+    ctx.font = 'bold 14px Consolas, "微软雅黑", monospace';
+    ctx.fillText(`❤️ ${playerHP}/${maxHP}  ⭐ ${expPoints}  🍀 ${luckyBonus}  ⚔️ ${getWeaponName()} (伤害:${currentDamage}, 暴击:${Math.round(criticalChance*100)}%)`, leftX, y);
+    y += 26;
+    ctx.font = '13px Consolas, "微软雅黑", monospace';
+    ctx.fillStyle = '#555';
+    ctx.fillText(`🪓 ${getAxeName()} (砍树速度:${getAxeSpeed()})  ⛏️ ${getPickaxeName()}`, leftX, y);
+    y += 28;
+    
+    // 物品栏
+    ctx.font = '13px Consolas, "微软雅黑", monospace';
+    ctx.fillStyle = '#333';
+    const itemStr = `橡木:${inventory[0]} 木板:${inventory[1]} 木棍:${inventory[2]} 苹果:${inventory[3]}`;
+    ctx.fillText(itemStr, leftX, y);
+    y += 22;
+    const itemStr2 = `圆石:${inventory[5]} 铁锭:${inventory[7]} 金锭:${inventory[8]} 钻石:${inventory[9]} 腐肉:${inventory[24]}`;
+    ctx.fillText(itemStr2, leftX, y);
+    y += 28;
+    
+    // 快捷栏
+    const slotW = 78, slotH = 32;
+    const barX = leftX, barY = y;
+    ctx.fillStyle = '#ddd';
+    ctx.fillRect(barX, barY, 10 * slotW, slotH);
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 10; i++) {
+        const x = barX + i * slotW;
+        ctx.strokeRect(x, barY, slotW, slotH);
+        ctx.fillStyle = '#333';
+        ctx.font = '11px Consolas, "微软雅黑", monospace';
+        ctx.fillText(hotbar[i] || '        ', x + 6, barY + 22);
+    }
+    y += slotH + 20;
+    
+    // 状态区域
+    if (state === 'idle' && !craftingVisible) {
+        ctx.fillStyle = '#444';
+        ctx.font = '14px Consolas, "微软雅黑", monospace';
+        ctx.fillText('🌲 砍树 (需斧头)  |  🔨 合成  |  ⛏️ 挖矿 (需镐)  |  ⚔️ 攻击 (需剑)', leftX, y);
+        y += 30;
+    } else if (state === 'chopping' || state === 'mining') {
+        const action = state === 'chopping' ? '砍树中' : '挖矿中';
+        ctx.fillStyle = '#0066cc';
+        ctx.font = 'bold 16px Consolas, "微软雅黑", monospace';
+        ctx.fillText(`${action} ... ${progress}%`, leftX, y);
+        // 进度条
+        const barW = 300, barH = 20;
+        const bx = leftX, by = y + 28;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(bx, by, barW, barH);
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(bx, by, barW, barH);
+        ctx.fillStyle = '#2d7d46';
+        ctx.fillRect(bx + 1, by + 1, (barW - 2) * progress / 100, barH - 2);
+        y += 55;
+    } else if (state === 'fighting') {
+        ctx.fillStyle = '#cc0000';
+        ctx.font = 'bold 16px Consolas, "微软雅黑", monospace';
+        ctx.fillText(`⚔️ 遭遇 ${monsterName}！ HP: ${monsterHP}/${monsterMaxHP}`, leftX, y);
+        y += 30;
+        ctx.fillStyle = '#555';
+        ctx.font = '14px Consolas, "微软雅黑", monospace';
+        ctx.fillText('按 "攻击" 按钮用剑战斗 (空格键)', leftX, y);
+        y += 30;
+    } else if (state === 'crafting' || craftingVisible) {
+        // 合成台界面
+        ctx.fillStyle = '#2d5a7d';
+        ctx.font = 'bold 16px Consolas, "微软雅黑", monospace';
+        ctx.fillText('🔨 合成台', leftX, y);
+        y += 28;
+        
+        // 3x3 网格
+        const gridX = 60, gridY = y;
+        const cellW = 85, cellH = 35;
+        let gridData = [];
+        if (selectedRecipe >= 0 && selectedRecipe < recipes.length) {
+            const r = recipes[selectedRecipe];
+            let idx = 0;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (idx < r.costs.length) {
+                        const itemID = r.costs[idx][0];
+                        const count = r.costs[idx][1];
+                        gridData.push(getItemName(itemID) + ' x' + count);
+                        idx++;
+                    } else {
+                        gridData.push('');
+                    }
+                }
+            }
+        } else {
+            gridData = ['', '', '', '', '', '', '', '', ''];
+        }
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                const x = gridX + j * cellW;
+                const yy = gridY + i * cellH;
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, yy, cellW, cellH);
+                ctx.fillStyle = '#333';
+                ctx.font = '11px Consolas, "微软雅黑", monospace';
+                ctx.fillText(gridData[i * 3 + j], x + 5, yy + 22);
+            }
+        }
+        // 箭头和产物
+        const arrowX = gridX + 3 * cellW + 15;
+        ctx.fillStyle = '#333';
+        ctx.font = '20px Consolas';
+        ctx.fillText('→', arrowX, gridY + 28);
+        const resultX = arrowX + 35;
+        if (selectedRecipe >= 0 && selectedRecipe < recipes.length) {
+            const r = recipes[selectedRecipe];
+            ctx.fillStyle = '#2d7d46';
+            ctx.font = 'bold 13px Consolas, "微软雅黑", monospace';
+            ctx.fillText(getItemName(r.result) + ' x' + r.count, resultX, gridY + 28);
+        }
+        y = gridY + 3 * cellH + 20;
+        
+        // 配方列表
+        ctx.fillStyle = '#333';
+        ctx.font = '13px Consolas, "微软雅黑", monospace';
+        ctx.fillText('选择配方 (点击下方按钮):', leftX, y);
+        y += 22;
+        let recipeButtons = '';
+        for (let i = 0; i < Math.min(recipes.length, 10); i++) {
+            const r = recipes[i];
+            const has = hasEnough(r.costs) ? '✅' : '❌';
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Consolas, "微软雅黑", monospace';
+            ctx.fillText(`${i+1}. ${r.name} ${has}`, leftX + (i % 5) * 150, y + Math.floor(i / 5) * 22);
+        }
+        y += Math.ceil(Math.min(recipes.length, 10) / 5) * 22 + 10;
+        ctx.fillStyle = '#888';
+        ctx.font = '12px Consolas, "微软雅黑", monospace';
+        ctx.fillText('点击下方数字按钮选择配方', leftX, y);
+    }
+    
+    // 消息区
+    const msgEl = document.getElementById('message');
+    // 消息通过DOM更新
+    
+    // 更新信息栏
+    updateInfoBar();
+    updateHotbarDisplay();
+}
+
+function updateInfoBar() {
+    document.getElementById('hp-display').textContent = `❤️ ${playerHP}/${maxHP}`;
+    document.getElementById('exp-display').textContent = `⭐ ${expPoints}`;
+    document.getElementById('lucky-display').textContent = `🍀 ${luckyBonus}`;
+    document.getElementById('weapon-display').textContent = `⚔️ ${getWeaponName()} (伤害:${currentDamage}, 暴击:${Math.round(criticalChance*100)}%)`;
+    document.getElementById('tool-display').textContent = `🪓 ${getAxeName()} (砍树速度:${getAxeSpeed()})  ⛏️ ${getPickaxeName()}`;
+}
+
+function updateHotbarDisplay() {
+    const container = document.getElementById('hotbar-display');
+    let html = '';
+    for (let i = 0; i < 10; i++) {
+        html += `<span class="hotbar-slot">${hotbar[i] || '空'}</span>`;
+    }
+    container.innerHTML = html;
+}
+
+function setMessage(msg) {
+    document.getElementById('message').textContent = msg;
+}
+
+function getWeaponName() {
+    const names = ['无', '木剑', '石剑', '金剑', '铁剑', '钻石剑'];
+    return names[swordLevel] || '无';
+}
+
+function getAxeName() {
+    const names = ['无', '木斧', '石斧', '金斧', '铁斧', '钻石斧'];
+    return names[axeLevel] || '无';
+}
+
+function getPickaxeName() {
+    const names = ['无', '木镐', '石镐', '金镐', '铁镐'];
+    return names[pickaxeLevel] || '无';
+}
+
+function getAxeSpeed() {
+    const speeds = [2, 4, 6, 8, 10, 14];
+    return speeds[axeLevel] || 2;
+}
+
+// ============================================================
+// 键盘控制
+// ============================================================
+document.addEventListener('keydown', (e) => {
+    const key = e.key;
+    if (key === '1') doAction('chop');
+    else if (key === '2') toggleCraft();
+    else if (key === '3') doAction('mine');
+    else if (key === ' ' || key === '5') {
+        e.preventDefault();
+        doAction('attack');
+    } else if (key >= '4' && key <= '9') {
+        const idx = parseInt(key) - 4;
+        if (craftingVisible && idx < recipes.length) {
+            selectRecipe(idx);
+        }
+    } else if (key === 'Escape') {
+        if (craftingVisible) {
+            craftingVisible = false;
+            state = 'idle';
+            setMessage('已退出合成');
+            render();
+        }
+    }
+});
+
+// ============================================================
+// 重置游戏
+// ============================================================
+function resetGame() {
+    if (progressInterval) clearInterval(progressInterval);
+    inventory = new Array(TOTAL_ITEMS).fill(0);
+    hotbar = [];
+    hotbarIndex = 0;
+    pickaxeLevel = 0;
+    axeLevel = 0;
+    swordLevel = 0;
+    luckyBonus = 0;
+    playerHP = 20;
+    maxHP = 20;
+    expPoints = 0;
+    state = 'idle';
+    progress = 0;
+    selectedRecipe = -1;
+    craftingVisible = false;
+    monsterHP = 0;
+    monsterMaxHP = 0;
+    monsterName = '';
+    // 初始物品
+    inventory[ITEM_IDS.OAK] = 5;
+    inventory[ITEM_IDS.OAK_WOOD] = 10;
+    inventory[ITEM_IDS.STICK] = 5;
+    inventory[ITEM_IDS.COBBLESTONE] = 3;
+    inventory[ITEM_IDS.IRON_INGOT] = 1;
+    inventory[ITEM_IDS.WOODEN_SWORD] = 1;
+    swordLevel = 1;
+    inventory[ITEM_IDS.WOODEN_AXE] = 1;
+    axeLevel = 1;
+    addToHotbar(ITEM_IDS.WOODEN_SWORD);
+    addToHotbar(ITEM_IDS.WOODEN_AXE);
+    updateWeaponStats();
+    setMessage('🔄 游戏已重置！');
+    render();
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+resetGame();
+
+// 添加配方选择按钮（在控件区动态生成）
+const controlsDiv = document.getElementById('controls');
+const recipeBtnsDiv = document.createElement('div');
+recipeBtnsDiv.id = 'recipe-buttons';
+recipeBtnsDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;';
+controlsDiv.parentNode.insertBefore(recipeBtnsDiv, controlsDiv.nextSibling);
+
+function updateRecipeButtons() {
+    const container = document.getElementById('recipe-buttons');
+    if (!craftingVisible) {
+        container.innerHTML = '';
+        return;
+    }
+    let html = '<span style="font-size:12px;color:#555;margin-right:6px;">配方:</span>';
+    for (let i = 0; i < recipes.length; i++) {
+        const r = recipes[i];
+        const has = hasEnough(r.costs);
+        html += `<button class="btn" style="font-size:11px;padding:3px 8px;background:${has?'#2d7d46':'#888'};" 
+                        onclick="selectRecipe(${i})">${i+1}. ${r.name}</button>`;
+    }
+    container.innerHTML = html;
+}
+
+// 重写render以更新配方按钮
+const originalRender = render;
+render = function() {
+    originalRender();
+    updateRecipeButtons();
+};
+
+// 启动循环
+setInterval(() => {
+    // 自动刷新
+    if (state === 'idle' || state === 'fighting') {
+        // 不频繁刷新
+    }
+}, 100);
+
+// 初始渲染
+render();
+
+console.log('🎮 我的世界·轻量版 已加载！');
+console.log('按键: 1=砍树 2=合成 3=挖矿 空格/5=攻击 4-9=选择配方 ESC=退出合成');
+</script>
+</body>
+</html>
