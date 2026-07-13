@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>猫国建设 · 终极版</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>🏗️ 猫国建设 · 终极版</h1>
+            <div id="stats-bar">
+                <span>⛰️ 石头: <span id="stat-rock">0</span></span>
+                <span>🛢️ 石油: <span id="stat-oll">0</span></span>
+                <span>⛽ 燃油: <span id="stat-ry">0</span></span>
+                <span>🔮 科学点: <span id="stat-step">0</span></span>
+                <span>💰 高能燃料: <span id="stat-hfuel">0</span></span>
+                <span>⏳ 离线收益: <span id="stat-offline">0</span>分</span>
+            </div>
+        </header>
+        <nav>
+            <button class="tab-btn" data-tab="main">🏠 主菜单</button>
+            <button class="tab-btn" data-tab="mine">⛏️ 采石</button>
+            <button class="tab-btn" data-tab="craft">🔧 合成</button>
+            <button class="tab-btn" data-tab="inventory">🎒 背包</button>
+            <button class="tab-btn" data-tab="science">🔬 科技</button>
+            <button class="tab-btn" data-tab="drill">🛠️ 钻井</button>
+            <button class="tab-btn" data-tab="auto">⚙️ 挂机</button>
+            <button class="tab-btn" data-tab="market">🏪 市场</button>
+            <button class="tab-btn" data-tab="achievement">🏆 成就</button>
+            <button class="tab-btn" data-tab="quest">📋 任务</button>
+            <button class="tab-btn" data-tab="minefield">🗺️ 矿区</button>
+            <button class="tab-btn" data-tab="stats">📊 统计</button>
+        </nav>
+        <main id="content">
+            <!-- 动态内容由 JavaScript 渲染 -->
+        </main>
+        <footer>
+            <button id="save-btn">💾 保存</button>
+            <button id="load-btn">📂 读取</button>
+            <button id="reset-btn">🔄 重置</button>
+            <span id="save-msg"></span>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
