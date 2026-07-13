@@ -100,7 +100,41 @@ footer button:hover {
     margin-left: 10px;
 }
 
-/* 内部组件样式 */
+/* ===== 通用按钮样式 ===== */
+.btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 1rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    display: inline-block;
+    margin: 4px;
+}
+.btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+.btn:active {
+    transform: scale(0.95);
+}
+.btn-primary { background: #f0c27f; color: #1a1a2e; }
+.btn-success { background: #5cb85c; color: white; }
+.btn-danger { background: #d9534f; color: white; }
+.btn-warning { background: #f0ad4e; color: white; }
+.btn-info { background: #5bc0de; color: white; }
+.btn-secondary { background: #6c757d; color: white; }
+.btn-purple { background: #9b59b6; color: white; }
+.btn-cyan { background: #1abc9c; color: white; }
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* ===== 布局组件 ===== */
 .resource-row {
     display: flex;
     flex-wrap: wrap;
@@ -124,20 +158,8 @@ footer button:hover {
     border-radius: 10px;
     border-left: 4px solid #f0c27f;
 }
-.craft-item button, .market-item button {
+.craft-item .btn, .market-item .btn {
     margin-top: 8px;
-    background: #f0c27f;
-    border: none;
-    color: #1a1a2e;
-    padding: 4px 14px;
-    border-radius: 16px;
-    cursor: pointer;
-    font-weight: bold;
-}
-.craft-item button:disabled {
-    background: #555;
-    color: #999;
-    cursor: not-allowed;
 }
 .quest-item, .achieve-item {
     background: #0f3460;
@@ -181,4 +203,9 @@ footer button:hover {
     border-radius: 8px;
     text-align: center;
 }
-</style>
+.section-title {
+    color: #f0c27f;
+    border-bottom: 2px solid #f0c27f;
+    padding-bottom: 4px;
+    margin: 16px 0 10px 0;
+}
