@@ -107,6 +107,20 @@
             box-shadow: 0 12px 36px rgba(232, 67, 147, 0.5);
             background: linear-gradient(135deg, #ff8ab0, #f062a0);
         }
+        /* ===== 猫国建设 卡片风格（新增） ===== */
+        .game-card.maoamo {
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            box-shadow: 0 8px 24px rgba(247, 151, 30, 0.35);
+            color: #1a1a2e;
+        }
+        .game-card.maoamo:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 36px rgba(247, 151, 30, 0.55);
+            background: linear-gradient(135deg, #fdaa2a, #ffe44a);
+        }
+        .game-card.maoamo .desc {
+            color: rgba(26, 26, 46, 0.7);
+        }
         .game-card:active {
             transform: scale(0.97);
         }
@@ -149,6 +163,12 @@
             <a href="mclight.html" class="game-card mc">
                 ⛏️ 我的世界·轻量版
                 <span class="desc">砍树 · 挖矿 · 合成 · 战斗</span>
+            </a>
+
+            <!-- ===== 猫国建设 · 终极版（新增） ===== -->
+            <a href="maoamo/index.html" class="game-card maoamo">
+                🏗️ 猫国建设 · 终极版
+                <span class="desc">放置挂机 · 20级合成 · 科技树 · 矿区探索</span>
             </a>
 
             <!-- 以后可以继续添加 -->
