@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>我的主页</title>
     <style>
+        /* ===== 全局重置 & 基础 ===== */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
             font-family: 'Segoe UI', 'PingFang SC', Roboto, Arial, sans-serif;
             min-height: 100vh;
@@ -20,6 +22,7 @@
             color: #fff;
             padding: 20px;
         }
+
         .container {
             max-width: 700px;
             width: 100%;
@@ -32,6 +35,7 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
+
         h1 {
             font-size: 3.2rem;
             font-weight: 700;
@@ -42,12 +46,14 @@
             margin-bottom: 12px;
             letter-spacing: 1px;
         }
+
         .subtitle {
             font-size: 1.1rem;
             color: rgba(255, 255, 255, 0.6);
             margin-bottom: 30px;
             line-height: 1.6;
         }
+
         .divider {
             width: 80px;
             height: 3px;
@@ -55,12 +61,15 @@
             border-radius: 4px;
             margin: 16px auto 28px;
         }
+
+        /* ===== 卡片按钮 ===== */
         .card-grid {
             display: flex;
             flex-direction: column;
             gap: 16px;
             margin-top: 20px;
         }
+
         .card-link {
             display: inline-block;
             padding: 18px 32px;
@@ -73,6 +82,7 @@
             letter-spacing: 0.5px;
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
+
         .card-link.games {
             background: linear-gradient(135deg, #f7971e, #ffd200);
             box-shadow: 0 8px 24px rgba(247, 151, 30, 0.35);
@@ -83,6 +93,7 @@
             box-shadow: 0 12px 36px rgba(247, 151, 30, 0.5);
             background: linear-gradient(135deg, #f8a82e, #ffe030);
         }
+
         .card-link.chat {
             background: linear-gradient(135deg, #9b59b6, #8e44ad);
             box-shadow: 0 8px 24px rgba(155, 89, 182, 0.35);
@@ -92,7 +103,7 @@
             box-shadow: 0 12px 36px rgba(155, 89, 182, 0.5);
             background: linear-gradient(135deg, #af7ac5, #9b59b6);
         }
-        /* ===== 🆕 OI 看板按钮样式 ===== */
+
         .card-link.oi {
             background: linear-gradient(135deg, #00b894, #00cec9);
             box-shadow: 0 8px 24px rgba(0, 206, 201, 0.35);
@@ -102,12 +113,201 @@
             box-shadow: 0 12px 36px rgba(0, 206, 201, 0.5);
             background: linear-gradient(135deg, #00d2d3, #00b894);
         }
-        /* ===== 通用 ===== */
+
         .card-link:active {
             transform: scale(0.97);
         }
+
+        /* ===== 🆕 滚动栏 ===== */
+        .scroll-section {
+            margin: 24px 0 18px;
+            padding: 0 4px;
+        }
+
+        .scroll-bar {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 60px;
+            padding: 12px 0;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.2);
+            /* 渐变遮罩：两端淡出 */
+            mask-image: linear-gradient(to right,
+                    transparent 0%,
+                    black 12%,
+                    black 88%,
+                    transparent 100%);
+            -webkit-mask-image: linear-gradient(to right,
+                    transparent 0%,
+                    black 12%,
+                    black 88%,
+                    transparent 100%);
+        }
+
+        /* 左侧装饰图标（固定） */
+        .scroll-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+            color: rgba(255, 215, 100, 0.7);
+            z-index: 2;
+            pointer-events: none;
+            text-shadow: 0 0 12px rgba(255, 215, 100, 0.15);
+            background: rgba(15, 12, 41, 0.5);
+            padding: 4px 8px;
+            border-radius: 30px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 215, 100, 0.1);
+        }
+
+        /* 右侧装饰分隔 */
+        .scroll-ornament {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.15);
+            z-index: 2;
+            pointer-events: none;
+            letter-spacing: 2px;
+        }
+        .scroll-ornament span {
+            display: inline-block;
+            animation: pulseDot 2s ease-in-out infinite;
+        }
+        .scroll-ornament span:nth-child(2) {
+            animation-delay: 0.4s;
+        }
+        .scroll-ornament span:nth-child(3) {
+            animation-delay: 0.8s;
+        }
+
+        @keyframes pulseDot {
+            0%,
+            100% {
+                opacity: 0.2;
+            }
+            50% {
+                opacity: 0.9;
+            }
+        }
+
+        /* 滚动轨道 */
+        .scroll-track {
+            display: inline-block;
+            white-space: nowrap;
+            padding-left: 60px;
+            padding-right: 60px;
+            will-change: transform;
+            animation: scrollLeft 16s linear infinite;
+        }
+
+        /* 滚动文字 */
+        .scroll-text {
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
+            letter-spacing: 0.8px;
+            text-shadow: 0 0 20px rgba(255, 215, 100, 0.05);
+            display: inline-block;
+            padding: 0 8px;
+        }
+
+        /* 文字前的引号装饰 */
+        .scroll-text::before {
+            content: '“';
+            color: rgba(255, 215, 100, 0.4);
+            font-size: 1.3rem;
+            margin-right: 6px;
+            font-weight: 300;
+        }
+        .scroll-text::after {
+            content: '”';
+            color: rgba(255, 215, 100, 0.4);
+            font-size: 1.3rem;
+            margin-left: 6px;
+            font-weight: 300;
+        }
+
+        /* 滚动关键帧 */
+        @keyframes scrollLeft {
+            0% {
+                transform: translateX(calc(100% + 40px));
+            }
+            100% {
+                transform: translateX(calc(-100% - 40px));
+            }
+        }
+
+        /* 加载占位 */
+        .scroll-text.loading {
+            color: rgba(255, 255, 255, 0.35);
+            animation: none !important;
+        }
+        .scroll-text.loading::before,
+        .scroll-text.loading::after {
+            content: '';
+        }
+
+        /* 加载动画小点 */
+        .loading-dots::after {
+            content: '...';
+            animation: dots 1.4s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0% {
+                content: '';
+            }
+            25% {
+                content: '.';
+            }
+            50% {
+                content: '..';
+            }
+            75% {
+                content: '...';
+            }
+            100% {
+                content: '';
+            }
+        }
+
+        /* ===== 其他原有组件 ===== */
+        .placeholder-items {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin: 16px 0 8px;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.07);
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s;
+            cursor: default;
+        }
+        .badge a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .badge:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.75);
+        }
+
         .extra-text {
-            margin-top: 32px;
+            margin-top: 24px;
             font-size: 0.95rem;
             color: rgba(255, 255, 255, 0.3);
             border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -116,55 +316,294 @@
         .extra-text span {
             color: rgba(255, 255, 255, 0.5);
         }
-        .placeholder-items {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 12px;
-            margin: 16px 0 8px;
-        }
-        .badge {
-            background: rgba(255, 255, 255, 0.07);
-            padding: 6px 18px;
-            border-radius: 40px;
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+
+        /* ===== 响应式 ===== */
         @media (max-width: 480px) {
-            .container { padding: 32px 20px; }
-            h1 { font-size: 2.4rem; }
-            .card-link { padding: 14px 24px; font-size: 1.1rem; }
+            .container {
+                padding: 28px 16px;
+            }
+            h1 {
+                font-size: 2.4rem;
+            }
+            .card-link {
+                padding: 14px 24px;
+                font-size: 1.1rem;
+            }
+            .scroll-bar {
+                padding: 10px 0;
+                border-radius: 40px;
+            }
+            .scroll-text {
+                font-size: 0.9rem;
+            }
+            .scroll-icon {
+                left: 10px;
+                font-size: 1rem;
+                padding: 2px 6px;
+            }
+            .scroll-ornament {
+                right: 10px;
+                font-size: 0.6rem;
+            }
+            .scroll-track {
+                padding-left: 40px;
+                padding-right: 40px;
+            }
+            .scroll-text::before,
+            .scroll-text::after {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .scroll-text {
+                font-size: 0.8rem;
+            }
+            .scroll-track {
+                padding-left: 30px;
+                padding-right: 30px;
+            }
+            .scroll-icon {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
+
     <div class="container">
+        <!-- 标题 -->
         <h1>🚀 我的主页</h1>
         <div class="subtitle">
-            这里汇聚了我的创意作品<br>
+            这里汇聚了我的创意作品<br />
             欢迎探索！
         </div>
         <div class="divider"></div>
 
+        <!-- 主要功能卡片 -->
         <div class="card-grid">
-            <!-- 游戏中心 -->
             <a href="/game/" class="card-link games">🎮 游戏中心</a>
-            <!-- 🆕 OI 统计看板 -->
             <a href="/oi-dashboard/" class="card-link oi">📊 OI AC 统计看板</a>
-            <!-- 聊天室 -->
             <a href="/chat/" class="card-link chat">💬 进入局域网聊天室</a>
         </div>
 
+        <!-- ===== 🆕 滚动栏 ===== -->
+        <div class="scroll-section">
+            <div class="scroll-bar" id="scrollBar">
+                <!-- 左侧装饰图标 -->
+                <div class="scroll-icon">📜</div>
+
+                <!-- 滚动轨道 -->
+                <div class="scroll-track" id="scrollTrack">
+                    <span class="scroll-text loading" id="scrollText">
+                        <span class="loading-dots">加载中</span>
+                    </span>
+                </div>
+
+                <!-- 右侧装饰点 -->
+                <div class="scroll-ornament">
+                    <span>✦</span>
+                    <span>✦</span>
+                    <span>✦</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 标签区 -->
         <div class="placeholder-items">
             <span class="badge">🎨 设计</span>
             <a href="./Blog/index.html" class="badge" style="text-decoration: none; color: inherit;">📚 博客</a>
             <span class="badge">🎮 其他</span>
         </div>
 
+        <!-- 底部信息 -->
         <div class="extra-text">
             <span>💡 点击按钮即可开始 · 聊天室需要 WebSocket 服务支持</span>
         </div>
     </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== 配置 =====
+            const DATA_URL = 'https://leaves-gzs.github.io/poetry/poetry.txt';
+            const SWITCH_INTERVAL = 7000; // 每 7 秒切换一条
+            const SCROLL_DURATION = 16; // 滚动动画时长（秒），与 CSS 保持一致
+
+            // ===== DOM 引用 =====
+            const scrollText = document.getElementById('scrollText');
+            const scrollTrack = document.getElementById('scrollTrack');
+
+            // ===== 状态 =====
+            let poetryData = []; // 所有诗句
+            let currentIndex = 0; // 当前显示索引
+            let timerId = null; // 定时器句柄
+            let isDataReady = false;
+
+            // ===== 工具：从数组中随机取一项 =====
+            function randomPick(arr) {
+                if (!arr || arr.length === 0) return null;
+                return arr[Math.floor(Math.random() * arr.length)];
+            }
+
+            // ===== 重置滚动动画 =====
+            function resetScrollAnimation() {
+                // 移除动画 → 强制回流 → 重新添加
+                scrollTrack.style.animation = 'none';
+                // 强制回流 (触发重排)
+                void scrollTrack.offsetHeight;
+                scrollTrack.style.animation = `scrollLeft ${SCROLL_DURATION}s linear infinite`;
+            }
+
+            // ===== 更新显示内容 =====
+            function displayPoetry(text) {
+                if (!text) {
+                    scrollText.textContent = '📖 暂无数据';
+                    scrollText.className = 'scroll-text loading';
+                    return;
+                }
+
+                // 移除 loading 状态
+                scrollText.className = 'scroll-text';
+                scrollText.textContent = text;
+
+                // 重置滚动动画，让文字从右侧重新开始
+                resetScrollAnimation();
+            }
+
+            // ===== 切换到下一条随机诗句 =====
+            function showNextRandom() {
+                if (!isDataReady || poetryData.length === 0) {
+                    // 如果数据还没准备好，显示占位
+                    if (scrollText.classList.contains('loading')) {
+                        // 保持 loading 状态
+                    } else {
+                        scrollText.textContent = '📖 等待数据...';
+                        scrollText.className = 'scroll-text loading';
+                    }
+                    return;
+                }
+
+                // 从数组中随机选一条（避免连续重复）
+                let newIndex;
+                let attempts = 0;
+                const maxAttempts = 20;
+                do {
+                    newIndex = Math.floor(Math.random() * poetryData.length);
+                    attempts++;
+                } while (newIndex === currentIndex && poetryData.length > 1 && attempts < maxAttempts);
+
+                currentIndex = newIndex;
+                const selected = poetryData[currentIndex];
+                displayPoetry(selected);
+            }
+
+            // ===== 从远程获取数据 =====
+            async function fetchPoetryData() {
+                try {
+                    const response = await fetch(DATA_URL, {
+                        cache: 'no-cache',
+                        headers: { 'Accept': 'text/plain' }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const text = await response.text();
+                    // 按行分割，过滤空行和首尾空白
+                    const lines = text.split(/\r?\n/)
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0);
+
+                    if (lines.length === 0) {
+                        throw new Error('数据文件为空');
+                    }
+
+                    poetryData = lines;
+                    isDataReady = true;
+
+                    // 首次显示：随机选一条
+                    currentIndex = Math.floor(Math.random() * poetryData.length);
+                    displayPoetry(poetryData[currentIndex]);
+
+                    // 启动定时切换
+                    startAutoSwitch();
+
+                    console.log(`✅ 成功加载 ${poetryData.length} 条诗句`);
+
+                } catch (err) {
+                    console.warn('⚠️ 加载诗句数据失败:', err.message);
+                    // 显示友好的错误提示
+                    scrollText.textContent = '📖 数据加载失败，请刷新重试';
+                    scrollText.className = 'scroll-text loading';
+                    // 尝试用默认占位继续运行
+                    isDataReady = false;
+                    // 依然启动定时器，但会显示等待状态
+                    startAutoSwitch();
+                }
+            }
+
+            // ===== 启动自动切换 =====
+            function startAutoSwitch() {
+                if (timerId) {
+                    clearInterval(timerId);
+                    timerId = null;
+                }
+                timerId = setInterval(showNextRandom, SWITCH_INTERVAL);
+            }
+
+            // ===== 手动刷新（暴露给调试） =====
+            window.refreshPoetry = function() {
+                if (timerId) {
+                    clearInterval(timerId);
+                    timerId = null;
+                }
+                fetchPoetryData();
+            };
+
+            // ===== 初始化 =====
+            // 先显示加载状态
+            scrollText.innerHTML = '<span class="loading-dots">加载中</span>';
+            scrollText.className = 'scroll-text loading';
+
+            // 开始获取数据
+            fetchPoetryData();
+
+            // 如果页面可见性变化，重新调整定时器（优化性能）
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    // 页面隐藏时暂停定时器
+                    if (timerId) {
+                        clearInterval(timerId);
+                        timerId = null;
+                    }
+                } else {
+                    // 页面重新可见时恢复定时器
+                    if (!timerId && isDataReady) {
+                        startAutoSwitch();
+                        // 立即显示一条新的，避免视觉停滞
+                        showNextRandom();
+                    } else if (!timerId && !isDataReady) {
+                        // 如果数据还没准备好，继续尝试加载
+                        fetchPoetryData();
+                    }
+                }
+            });
+
+            // 页面关闭前清理定时器
+            window.addEventListener('beforeunload', function() {
+                if (timerId) {
+                    clearInterval(timerId);
+                    timerId = null;
+                }
+            });
+
+            console.log('📜 滚动栏已初始化，数据源:', DATA_URL);
+
+        })();
+    </script>
+
 </body>
 </html>
