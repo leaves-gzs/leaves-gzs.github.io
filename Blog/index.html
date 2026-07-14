@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>我的博客</title>
+    <style>
+        /* ===== 全局重置 & 字体 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f8f9fa;
+            color: #1a1a2e;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 820px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+            padding: 2.5rem 2.8rem;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .blog-header {
+            text-align: center;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid #f0f0f5;
+            margin-bottom: 2.5rem;
+        }
+
+        .blog-header h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #4a4a8a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .blog-header p {
+            color: #8888a8;
+            font-size: 1rem;
+            margin-top: 0.4rem;
+            letter-spacing: 1px;
+        }
+
+        .article-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .article-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.2rem;
+            background: #fafbff;
+            border-radius: 14px;
+            border: 1px solid #eef0f5;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .article-item:hover {
+            background: #f0f3ff;
+            border-color: #c5cdff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(74, 74, 138, 0.08);
+        }
+
+        .article-item:active {
+            transform: scale(0.98);
+        }
+
+        .article-info {
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .article-index {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: #e6e9ff;
+            color: #4a4a8a;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .article-title {
+            font-size: 1.08rem;
+            font-weight: 500;
+            color: #1a1a2e;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .article-meta {
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-shrink: 0;
+            margin-left: 1rem;
+        }
+
+        .article-date {
+            font-size: 0.85rem;
+            color: #9999b0;
+            white-space: nowrap;
+        }
+
+        .article-arrow {
+            color: #b0b8d0;
+            font-size: 1.1rem;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+
+        .article-item:hover .article-arrow {
+            color: #4a4a8a;
+            transform: translateX(4px);
+        }
+
+        .blog-footer {
+            margin-top: 3rem;
+            padding-top: 1.8rem;
+            border-top: 2px solid #f0f0f5;
+            text-align: center;
+            color: #b0b8d0;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .blog-footer a {
+            color: #4a4a8a;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .blog-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #b0b8d0;
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 1rem 0.6rem;
+            }
+            .container {
+                padding: 1.5rem 1.2rem;
+                border-radius: 18px;
+            }
+            .blog-header h1 {
+                font-size: 1.8rem;
+            }
+            .article-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+                padding: 0.9rem 1rem;
+            }
+            .article-info {
+                gap: 0.8rem;
+            }
+            .article-title {
+                font-size: 0.98rem;
+                white-space: normal;
+                word-break: break-word;
+            }
+            .article-meta {
+                margin-left: 0;
+                justify-content: space-between;
+                padding-left: 2.8rem;
+            }
+            .article-date {
+                font-size: 0.78rem;
+            }
+            .article-arrow {
+                font-size: 0.95rem;
+            }
+            .blog-footer {
+                font-size: 0.78rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .container {
+                padding: 1rem 0.8rem;
+            }
+            .article-index {
+                width: 26px;
+                height: 26px;
+                font-size: 0.75rem;
+            }
+            .article-meta {
+                padding-left: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="blog-header">
+            <h1>📖 小径·博客</h1>
+            <p>记录思考 · 分享见闻</p>
+        </header>
+
+        <div id="articleList" class="article-list">
+            <!-- 由 JavaScript 动态渲染 -->
+        </div>
+
+        <footer class="blog-footer">
+            &copy; 2026 <a href="#">小径博客</a> &middot; 用 ❤️ 和 Markdown 书写
+        </footer>
+    </div>
+
+    <script>
+        // ============================================================
+        //  📌 文章数据配置 —— 文件名就是中文，直接写中文即可
+        //  每篇文章需指定：id（对应文件名，不含 .html）、title、date
+        //  文件放在 data/ 文件夹中，如 data/Kruskal算法.html
+        // ============================================================
+        const ARTICLES = [
+            { id: 'Kruskal算法', title: 'Kruskal算法', date: '2026-01-12' },
+            { id: '创建MC服务器', title: '创建MC服务器', date: '2026-01-28' },
+            { id: '快读快写', title: '快读快写', date: '2026-02-10' },
+            { id: '链式前向星', title: '链式前向星', date: '2026-02-22' }
+        ];
+
+        // ============================================================
+        //  渲染函数
+        // ============================================================
+        function renderArticles(articles) {
+            const container = document.getElementById('articleList');
+
+            if (!articles || articles.length === 0) {
+                container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📭</div>
+                            <p>还没有文章，敬请期待…</p>
+                        </div>
+                    `;
+                return;
+            }
+
+            // 按日期倒序排序（最新在前）
+            const sorted = [...articles].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const html = sorted.map((article, index) => {
+                const displayIndex = index + 1;
+                // 直接用中文 id 构造链接，浏览器会自动 URL 编码
+                const href = `data/${article.id}.html`;
+                return `
+                        <a href="${href}" class="article-item">
+                            <div class="article-info">
+                                <span class="article-index">${displayIndex}</span>
+                                <span class="article-title">${escapeHtml(article.title)}</span>
+                            </div>
+                            <div class="article-meta">
+                                <span class="article-date">${formatDate(article.date)}</span>
+                                <span class="article-arrow">→</span>
+                            </div>
+                        </a>
+                    `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        // 简单的防 XSS 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 日期格式化
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            try {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    return `${parts[0]} 年 ${parseInt(parts[1])} 月 ${parseInt(parts[2])} 日`;
+                }
+                return dateStr;
+            } catch (_) {
+                return dateStr;
+            }
+        }
+
+        // 启动
+        renderArticles(ARTICLES);
+    </script>
+
+</body>
+</html>
