@@ -1,0 +1,165 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+}
+
+body {
+    background: #1a1a1a;
+    color: #c0c0c0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+#app {
+    max-width: 900px;
+    width: 100%;
+    background: #2a2a2a;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+    border: 1px solid #3a3a3a;
+}
+
+header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #3a3a3a;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.stat {
+    background: #222;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid #444;
+    white-space: nowrap;
+}
+
+.stat span {
+    color: #0f0;
+    font-weight: bold;
+}
+
+#compCountdown {
+    color: #ffaa00;
+    border-color: #ffaa00;
+}
+
+.panel {
+    display: block;
+    min-height: 400px;
+}
+
+h2 {
+    color: #0f0;
+    margin-bottom: 15px;
+    font-size: 24px;
+    border-left: 4px solid #0f0;
+    padding-left: 12px;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.action-btn {
+    background: #333;
+    color: #c0c0c0;
+    border: 1px solid #555;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.2s;
+}
+
+.action-btn:hover {
+    background: #3f3f3f;
+    border-color: #0f0;
+    color: #fff;
+}
+
+.log {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 15px;
+    max-height: 250px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.log .success { color: #0f0; }
+.log .fail { color: #f00; }
+.log .info { color: #aaa; }
+
+#compContent {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    min-height: 150px;
+    border: 1px solid #333;
+}
+
+#compContinueBtn {
+    background: #0f0;
+    color: #000;
+    border: none;
+    padding: 8px 25px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    display: none;
+}
+
+#compContinueBtn:hover {
+    background: #8f8;
+}
+
+/* 滚动条样式 */
+.log::-webkit-scrollbar {
+    width: 6px;
+}
+.log::-webkit-scrollbar-track {
+    background: #111;
+}
+.log::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.comp-choice {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 5px;
+    cursor: pointer;
+    color: #c0c0c0;
+}
+.comp-choice:hover {
+    background: #333;
+    border-color: #0f0;
+}
