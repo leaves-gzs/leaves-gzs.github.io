@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>☀️ 暑假倒计时 · 粒子</title>
+    <style>
+        /* ===== 全局重置 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;          /* 防止滚动 */
+            background: #0b0e1a;        /* 深色后备 */
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* ===== 粒子画布 ===== */
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;      /* 让点击穿透到卡片 */
+            display: block;
+        }
+
+        /* ===== 主卡片 ===== */
+        .card {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 520px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(24px) saturate(1.6);
+            -webkit-backdrop-filter: blur(24px) saturate(1.6);
+            border-radius: 48px;
+            padding: 40px 32px 36px;
+            box-shadow:
+                0 30px 60px rgba(0, 0, 0, 0.50),
+                0 10px 30px rgba(0, 0, 0, 0.20),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            transition: all 0.2s ease;
+            margin: 20px;
+        }
+
+        /* ===== 标题 ===== */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header .emoji {
+            font-size: 36px;
+            display: block;
+            margin-bottom: 4px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffb74d, #ff8a65);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 10px rgba(255, 183, 77, 0.15);
+        }
+        .header .sub {
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.70);
+            margin-top: 4px;
+            letter-spacing: 0.3px;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .header .sub span {
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.90);
+        }
+
+        /* ===== 进度条区域 ===== */
+        .progress-section {
+            margin-bottom: 32px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 10px;
+        }
+        .progress-label .label {
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.70);
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        .progress-label .percent {
+            font-size: 24px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffb74d, #ff6e40);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            transition: all 0.05s linear;
+            text-shadow: 0 0 20px rgba(255, 107, 53, 0.15);
+        }
+
+        .progress-track {
+            position: relative;
+            width: 100%;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 99px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.40);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 100%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #ff8a65, #ff6e40, #f4511e);
+            box-shadow: 0 0 30px rgba(244, 81, 30, 0.30);
+            transition: width 0.05s linear;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, transparent 100%);
+            border-radius: 99px 99px 0 0;
+            pointer-events: none;
+        }
+
+        .progress-fill::before {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px;
+            height: 22px;
+            background: radial-gradient(circle at 35% 35%, #ffab91, #f4511e);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(244, 81, 30, 0.50);
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            opacity: 0.6;
+            transition: opacity 0.2s ease;
+        }
+        .progress-fill:hover::before {
+            opacity: 1;
+        }
+
+        /* ===== 数据双栏 ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 4px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 24px;
+            padding: 18px 16px 16px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        .stat-card .stat-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.60);
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .stat-card .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+            line-height: 1.2;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .stat-card .stat-unit {
+            font-size: 16px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.50);
+            margin-left: 2px;
+        }
+
+        .stat-card.remaining .stat-value {
+            color: #ffab91;
+        }
+        .stat-card.elapsed .stat-value {
+            color: #81d4fa;
+        }
+
+        /* ===== 底部 ===== */
+        .footer {
+            margin-top: 28px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.40);
+            letter-spacing: 0.4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 20px;
+        }
+        .footer .date-range {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px 18px;
+            border-radius: 99px;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .footer .date-range .dot {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.20);
+        }
+        .footer .date-range strong {
+            color: rgba(255, 255, 255, 0.80);
+            font-weight: 600;
+        }
+
+        /* ===== 状态徽章 ===== */
+        .status-badge {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 16px;
+            border-radius: 99px;
+            margin-top: 2px;
+            letter-spacing: 0.4px;
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.70);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .status-badge.active {
+            background: rgba(244, 81, 30, 0.20);
+            color: #ffab91;
+            border-color: rgba(255, 138, 101, 0.15);
+        }
+        .status-badge.upcoming {
+            background: rgba(129, 212, 250, 0.12);
+            color: #81d4fa;
+            border-color: rgba(129, 212, 250, 0.10);
+        }
+        .status-badge.ended {
+            background: rgba(255, 255, 255, 0.04);
+            color: rgba(255, 255, 255, 0.40);
+            border-color: rgba(255, 255, 255, 0.04);
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 480px) {
+            .card {
+                padding: 28px 18px 24px;
+                border-radius: 32px;
+                margin: 12px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+            .header .emoji {
+                font-size: 28px;
+            }
+            .progress-label .percent {
+                font-size: 20px;
+            }
+            .stat-card .stat-value {
+                font-size: 26px;
+            }
+            .stat-card {
+                padding: 14px 12px 12px;
+                border-radius: 20px;
+            }
+            .stats-grid {
+                gap: 12px;
+            }
+            .footer {
+                font-size: 12px;
+                padding-top: 16px;
+                margin-top: 20px;
+            }
+            .progress-track {
+                height: 14px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .card {
+                padding: 20px 12px 18px;
+                border-radius: 28px;
+            }
+            .header h1 {
+                font-size: 20px;
+            }
+            .stat-card .stat-value {
+                font-size: 22px;
+            }
+            .progress-label .percent {
+                font-size: 18px;
+            }
+            .stats-grid {
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== 全屏粒子画布 ===== -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- ===== 主卡片 ===== -->
+    <div class="card" role="main">
+        <!-- 标题 -->
+        <div class="header">
+            <span class="emoji">🏖️</span>
+            <h1>暑假倒计时</h1>
+            <div class="sub">
+                距离 <span>自由夏日</span> 还有&nbsp;…
+            </div>
+        </div>
+
+        <!-- 进度条 -->
+        <div class="progress-section">
+            <div class="progress-label">
+                <span class="label">⏳ 剩余进度</span>
+                <span class="percent" id="percentDisplay">100.0000%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill" style="width:100%;"></div>
+            </div>
+            <div style="text-align:center; margin-top: 8px;">
+                <span class="status-badge active" id="statusBadge">● 进行中</span>
+            </div>
+        </div>
+
+        <!-- 双栏数据 -->
+        <div class="stats-grid">
+            <div class="stat-card remaining">
+                <div class="stat-label">📅 剩余天数</div>
+                <div class="stat-value">
+                    <span id="remainingDays">59.0000</span>
+                    <span class="stat-unit">天</span>
+                </div>
+            </div>
+            <div class="stat-card elapsed">
+                <div class="stat-label">⏱️ 已过天数</div>
+                <div class="stat-value">
+                    <span id="elapsedDays">0.0000</span>
+                    <span class="stat-unit">天</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部 -->
+        <div class="footer">
+            <div class="date-range">
+                <strong>7月4日</strong>
+                <span class="dot"></span>
+                <strong>8月31日</strong>
+                <span style="color:rgba(255,255,255,0.30); margin-left:4px;">· 共 59 天</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  1. 粒子背景动画
+        // ============================================================
+        (function initParticles() {
+            const canvas = document.getElementById('particleCanvas');
+            const ctx = canvas.getContext('2d');
+
+            let width, height;
+            let particles = [];
+            const PARTICLE_COUNT = 130;
+
+            // ---------- 工具 ----------
+            function random(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            // ---------- 调整尺寸 ----------
+            function resizeCanvas() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+            }
+
+            // ---------- 粒子类 ----------
+            class Particle {
+                constructor() {
+                    this.x = random(0, width);
+                    this.y = random(0, height);
+                    this.radius = random(1.2, 3.8);
+                    // 速度极慢，营造漂浮感
+                    this.dx = random(-0.12, 0.12);
+                    this.dy = random(-0.12, 0.12);
+                    // 颜色 HSL: 暖色 (橙/黄/粉/蓝) 亮度高
+                    const hue = random(0, 360);
+                    const sat = random(60, 100);
+                    const lig = random(60, 90);
+                    this.color = `hsla(${hue}, ${sat}%, ${lig}%, ${random(0.6, 1.0)})`;
+                    // 透明度微变
+                    this.alpha = random(0.4, 0.9);
+                }
+
+                update() {
+                    this.x += this.dx;
+                    this.y += this.dy;
+
+                    // 边界反弹（软边界，超出后反向）
+                    if (this.x < 0 || this.x > width) {
+                        this.dx *= -1;
+                        this.x = Math.min(Math.max(this.x, 0), width);
+                    }
+                    if (this.y < 0 || this.y > height) {
+                        this.dy *= -1;
+                        this.y = Math.min(Math.max(this.y, 0), height);
+                    }
+
+                    // 偶尔轻微随机改变方向（更自然）
+                    if (Math.random() < 0.002) {
+                        this.dx += random(-0.02, 0.02);
+                        this.dy += random(-0.02, 0.02);
+                        // 限制速度范围
+                        const maxSpeed = 0.25;
+                        this.dx = Math.min(Math.max(this.dx, -maxSpeed), maxSpeed);
+                        this.dy = Math.min(Math.max(this.dy, -maxSpeed), maxSpeed);
+                    }
+                }
+
+                draw() {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowColor = 'rgba(255,255,255,0.1)';
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                    // 重置阴影
+                    ctx.shadowBlur = 0;
+                }
+            }
+
+            // ---------- 初始化粒子 ----------
+            function initParticles() {
+                particles = [];
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    particles.push(new Particle());
+                }
+            }
+
+            // ---------- 动画循环 ----------
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+
+                // 绘制半透明背景渐变 (深色星空)
+                const gradient = ctx.createRadialGradient(
+                    width * 0.5, height * 0.4, 0,
+                    width * 0.5, height * 0.4, Math.max(width, height) * 0.8
+                );
+                gradient.addColorStop(0, '#1a1f3a');
+                gradient.addColorStop(0.5, '#0e1428');
+                gradient.addColorStop(1, '#070b14');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+
+                // 绘制粒子
+                for (let p of particles) {
+                    p.update();
+                    p.draw();
+                }
+
+                // 极少连线 (只连距离近的，增加梦幻感)
+                ctx.lineWidth = 0.5;
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        if (dist < 110) {
+                            const alpha = (1 - dist / 110) * 0.20;
+                            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            // ---------- 启动 ----------
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                // 重新分布粒子以适应新尺寸（可选）
+                // 这里简单重置粒子位置
+                for (let p of particles) {
+                    p.x = random(0, width);
+                    p.y = random(0, height);
+                }
+            });
+
+            resizeCanvas();
+            initParticles();
+            animate();
+
+            // 小优化：页面不可见时暂停？但不需要，保持运行。
+        })();
+
+
+        // ============================================================
+        //  2. 暑假倒计时逻辑 (与之前一致，微调样式适配暗色)
+        // ============================================================
+        (function countdown() {
+            'use strict';
+
+            const now = new Date();
+            const year = now.getFullYear();
+
+            const start = new Date(year, 6, 4, 0, 0, 0, 0);
+            const end = new Date(year, 8, 1, 0, 0, 0, 0);
+
+            const TOTAL_MS = end.getTime() - start.getTime();
+            const TOTAL_DAYS = TOTAL_MS / (24 * 60 * 60 * 1000);
+
+            const percentDisplay = document.getElementById('percentDisplay');
+            const progressFill = document.getElementById('progressFill');
+            const remainingDaysEl = document.getElementById('remainingDays');
+            const elapsedDaysEl = document.getElementById('elapsedDays');
+            const statusBadge = document.getElementById('statusBadge');
+
+            function clamp(val, min, max) {
+                return Math.min(Math.max(val, min), max);
+            }
+
+            function update() {
+                const now = Date.now();
+                let elapsedMs = now - start.getTime();
+                elapsedMs = clamp(elapsedMs, 0, TOTAL_MS);
+
+                const elapsedDays = elapsedMs / (24 * 60 * 60 * 1000);
+                const remainingDays = TOTAL_DAYS - elapsedDays;
+                let percent = (remainingDays / TOTAL_DAYS) * 100;
+                percent = clamp(percent, 0, 100);
+
+                percentDisplay.textContent = percent.toFixed(4) + '%';
+                progressFill.style.width = percent.toFixed(4) + '%';
+                remainingDaysEl.textContent = remainingDays.toFixed(4);
+                elapsedDaysEl.textContent = elapsedDays.toFixed(4);
+
+                const nowDate = Date.now();
+                if (nowDate < start.getTime()) {
+                    statusBadge.textContent = '🌤️ 暑假未开始';
+                    statusBadge.className = 'status-badge upcoming';
+                } else if (nowDate >= end.getTime()) {
+                    statusBadge.textContent = '🎉 暑假已结束';
+                    statusBadge.className = 'status-badge ended';
+                } else {
+                    statusBadge.textContent = '☀️ 暑假进行中';
+                    statusBadge.className = 'status-badge active';
+                }
+            }
+
+            update();
+            let intervalId = setInterval(update, 100);
+
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    clearInterval(intervalId);
+                    intervalId = setInterval(update, 500);
+                } else {
+                    clearInterval(intervalId);
+                    update();
+                    intervalId = setInterval(update, 100);
+                }
+            });
+
+            window.addEventListener('beforeunload', function() {
+                clearInterval(intervalId);
+            });
+
+            console.log('🏖️ 暑假倒计时已启动 | 总天数: ' + TOTAL_DAYS.toFixed(4));
+        })();
+    </script>
+
+</body>
+</html>
