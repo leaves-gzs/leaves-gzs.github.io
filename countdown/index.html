@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>☀️ 暑假倒计时 · 粒子</title>
+    <title>☀️暑假倒计时</title>
     <style>
         /* ===== 全局重置 ===== */
         * {
@@ -359,9 +359,6 @@
         <div class="header">
             <span class="emoji">🏖️</span>
             <h1>暑假倒计时</h1>
-            <div class="sub">
-                距离 <span>自由夏日</span> 还有&nbsp;…
-            </div>
         </div>
 
         <!-- 进度条 -->
@@ -381,14 +378,14 @@
         <!-- 双栏数据 -->
         <div class="stats-grid">
             <div class="stat-card remaining">
-                <div class="stat-label">📅 剩余天数</div>
+                <div class="stat-label">剩余天数</div>
                 <div class="stat-value">
                     <span id="remainingDays">59.0000</span>
                     <span class="stat-unit">天</span>
                 </div>
             </div>
             <div class="stat-card elapsed">
-                <div class="stat-label">⏱️ 已过天数</div>
+                <div class="stat-label">已过天数</div>
                 <div class="stat-value">
                     <span id="elapsedDays">0.0000</span>
                     <span class="stat-unit">天</span>
@@ -627,7 +624,7 @@
                 clearInterval(intervalId);
             });
 
-            console.log('🏖️ 暑假倒计时已启动 | 总天数: ' + TOTAL_DAYS.toFixed(4));
+            console.log('暑假倒计时已启动 | 总天数: ' + TOTAL_DAYS.toFixed(4));
         })();
     </script>
 
