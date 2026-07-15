@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OI 机房模拟器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部状态栏 -->
+        <header id="status-bar">
+            <div class="stat">📅 第 <span id="dayDisplay">1</span> 天</div>
+            <div class="stat">📚 知识 <span id="knowledgeDisplay">0</span></div>
+            <div class="stat">❤️ 健康 <span id="healthDisplay">100</span>%</div>
+            <div class="stat">🍀 运气 <span id="luckDisplay">50</span>%</div>
+            <div class="stat">🧠 心态 <span id="mentalityDisplay">1.00</span></div>
+            <div class="stat">💰 金钱 <span id="moneyDisplay">0</span></div>
+            <div class="stat">⏳ 剩余时间 <span id="doingDisplay">10</span></div>
+            <div class="stat" id="compCountdown"></div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main id="main-area">
+            <!-- 日常界面 -->
+            <div id="daily-panel" class="panel">
+                <h2>🏫 日常活动</h2>
+                <div class="actions">
+                    <button class="action-btn" data-action="study">📖 学习</button>
+                    <button class="action-btn" data-action="practice">💻 刷题</button>
+                    <button class="action-btn" data-action="game">🎮 玩杀戮之塔</button>
+                    <button class="action-btn" data-action="forum">💬 水讨论区</button>
+                    <button class="action-btn" data-action="sleep">🛌 进入下一天</button>
+                </div>
+                <div id="daily-log" class="log"></div>
+            </div>
+
+            <!-- 比赛界面 -->
+            <div id="competition-panel" class="panel" style="display:none;">
+                <h2 id="compTitle">比赛名称</h2>
+                <div id="compInfo"></div>
+                <div id="compContent"></div>
+                <div id="compLog" class="log"></div>
+                <button id="compContinueBtn" style="display:none;">继续</button>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
